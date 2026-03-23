@@ -1,0 +1,34 @@
+{
+  "name": "quarn-test",
+  "version": "1.0.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "nodemon --watch src --ext ts,json --exec node --loader ts-node/esm src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "convert": "node convert.js",
+    "scripts:semanticRoots": "node --loader ts-node/esm src/scripts/index.ts --semanticRoots"
+  },
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "^8.4.3",
+    "@fastify/cors": "^11.2.0",
+    "@scalar/fastify-api-reference": "^1.46.4",
+    "dotenv": "^17.3.1",
+    "fastify": "^5.8.1",
+    "mongoose": "^8.23.0",
+    "openapi3-ts": "^4.5.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^25.3.5",
+    "nodemon": "^3.1.14",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
+  }
+}
