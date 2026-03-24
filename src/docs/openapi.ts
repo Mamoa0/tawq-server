@@ -15,6 +15,6 @@ export function generateOpenAPI() {
       title: "Quran API",
       description: "API for Quran and Search functionality",
     },
-    servers: [{ url: "http://localhost:5000" }],
+    servers: [{ url: "http://localhost:" + process.env.PORT }],
   });
 }
