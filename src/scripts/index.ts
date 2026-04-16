@@ -8,6 +8,9 @@ import { seedRoots } from "./seedRoots.js";
 import { runSemanticRoots } from "./semanticRoots.js";
 import { runCoOccurrence } from "./coOccurrence.js";
 import { verify } from "./verify.js";
+import { seedRootMeanings } from "./seedRootMeanings.js";
+import { enrichVerses, enrichSurahs } from "./enrichData.js";
+
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/quran_db";
 
@@ -23,7 +26,11 @@ async function main() {
     console.log("  --roots         : Seed roots collection (requires tokens)");
     console.log("  --coOccurrence  : Find roots that appear together in the same verse");
     console.log("  --semanticRoots : Fetch semantic connections using Gemini");
+    console.log("  --rootMeanings  : Fetch root meanings from external APIs (--source, --all, --drop)");
+    console.log("  --enrichVerses  : Enrich verses collection");
+    console.log("  --enrichSurahs  : Enrich surahs collection");
     console.log("  --all           : Seed all 5 base collections");
+
     console.log("  --verify        : Check collection counts\n");
     process.exit(0);
   }
@@ -65,6 +72,23 @@ async function main() {
     if (args.includes("--verify") || args.includes("--all")) {
       await verify();
     }
+
+    if (args.includes("--rootMeanings")) {
+      const sourceArg = args[args.indexOf("--source") + 1];
+      const isAll = args.includes("--all");
+      const isDrop = args.includes("--drop");
+      await seedRootMeanings({ source: sourceArg, all: isAll, drop: isDrop });
+    }
+
+    if (args.includes("--enrichVerses") || args.includes("--all")) {
+      await enrichVerses();
+    }
+
+    if (args.includes("--enrichSurahs") || args.includes("--all")) {
+      await enrichSurahs();
+    }
+
+
   } catch (error) {
     console.error("❌ Fatal Error:", error);
   } finally {

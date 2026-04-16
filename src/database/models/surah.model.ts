@@ -15,6 +15,14 @@ const surahSchema = new Schema(
       start: { type: Number }, 
       end: { type: Number }, 
     },
+    words_count: { type: Number },
+    roots_count: { type: Number },
+    top_roots: [
+      {
+        root: { type: String },
+        count: { type: Number },
+      },
+    ],
   },
   { timestamps: true },
 );

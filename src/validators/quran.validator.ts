@@ -11,6 +11,7 @@ export const surahParamSchema = z
 
 export const pageParamSchema = z
   .object({
+    number: z.coerce.number().int().min(1).max(114),
     page: z.coerce.number().int().min(1).max(604),
   })
   .openapi("PageParams");

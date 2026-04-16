@@ -68,7 +68,7 @@ export const getVersesByPageHandler = async (
     return;
   }
 
-  const data = await getVersesByPage(parsed.data.page);
+  const data = await getVersesByPage(parsed.data.number, parsed.data.page);
   reply.send({ data });
 };
 

@@ -7,6 +7,19 @@ const verseSchema = new Schema(
     page: { type: Number, required: true },
     arabic: { type: String, required: true },
     translation: { type: String, default: "" },
+    juz: { type: Number },
+    hizb: { type: Number },
+    rub: { type: Number },
+    manzil: { type: Number },
+    sajda: { type: Boolean, default: false },
+    next: {
+      surah: { type: Number },
+      ayah: { type: Number },
+    },
+    prev: {
+      surah: { type: Number },
+      ayah: { type: Number },
+    },
   },
   { timestamps: true },
 );

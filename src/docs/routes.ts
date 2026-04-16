@@ -14,6 +14,7 @@ export function registerRoutes() {
     path: "/api/quran/surahs",
     description: "Get a list of all Surahs",
     summary: "Get All Surahs",
+    tags: ["Reading"],
     responses: {
       200: {
         description: "List of surahs",
@@ -33,6 +34,7 @@ export function registerRoutes() {
     path: "/api/quran/surahs/{number}",
     description: "Get a Surah by its number",
     summary: "Get Surah",
+    tags: ["Reading"],
     request: {
       params: surahParamSchema,
     },
@@ -55,9 +57,10 @@ export function registerRoutes() {
 
   registry.registerPath({
     method: "get",
-    path: "/api/quran/page/{page}",
+    path: "/api/quran/surahs/{number}/page/{page}",
     description: "Get verses by page number",
     summary: "Get Page Verses",
+    tags: ["Reading"],
     request: {
       params: pageParamSchema,
     },
@@ -80,6 +83,7 @@ export function registerRoutes() {
     path: "/api/quran/surah/{s}/ayah/{a}",
     description: "Get specific ayah with its words",
     summary: "Get Ayah",
+    tags: ["Reading"],
     request: {
       params: verseParamSchema,
     },
@@ -105,6 +109,7 @@ export function registerRoutes() {
     path: "/api/quran/surah/{s}/ayah/{a}/word/{w}",
     description: "Get details for a specific word in an ayah",
     summary: "Get Word Details",
+    tags: ["Reading"],
     request: {
       params: wordParamSchema,
     },
@@ -243,6 +248,7 @@ export function registerRoutes() {
     path: "/api/compare/surahs",
     description: "Compare statistics and themes between two Surahs",
     summary: "Compare Surahs",
+    tags: ["Compare"],
     request: {
       query: z.object({
         a: z.coerce.number().int().min(1).max(114).describe("First Surah number"),
@@ -272,6 +278,7 @@ export function registerRoutes() {
     path: "/api/compare/roots",
     description: "Compare statistics, overlaps, and co-occurrences of two roots",
     summary: "Compare Roots",
+    tags: ["Compare"],
     request: {
       query: z.object({
         a: z.string().describe("First root (Arabic)"),
