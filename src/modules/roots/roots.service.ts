@@ -5,6 +5,20 @@ import { TokenDocument } from "../../validators/search.validator.js";
 import { RootDocument } from "./roots.model.js";
 
 let cachedRoots: string[] | null = null;
+let rootsCacheTimeout: NodeJS.Timeout | null = null;
+
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+function clearRootsCache() {
+  cachedRoots = null;
+  if (rootsCacheTimeout) clearTimeout(rootsCacheTimeout);
+  rootsCacheTimeout = null;
+}
+
+function setRootsCacheExpiry() {
+  if (rootsCacheTimeout) clearTimeout(rootsCacheTimeout);
+  rootsCacheTimeout = setTimeout(clearRootsCache, CACHE_TTL);
+}
 
 export async function getRoots() {
   if (cachedRoots) return cachedRoots;
@@ -25,6 +39,7 @@ export async function getRoots() {
       .map((root) => buckwalterToArabic(root as string));
   }
 
+  setRootsCacheExpiry();
   return cachedRoots;
 }
 

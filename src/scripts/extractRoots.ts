@@ -122,7 +122,7 @@ ${chunk}`;
 
     if (!res.ok) throw new Error(`Ollama error: ${res.status}`);
 
-    const data = await res.json();
+    const data = await res.json() as any;
     const text = (data.response || "[]")
         .replace(/```json|```/g, "")
         .trim();

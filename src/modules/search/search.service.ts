@@ -7,6 +7,20 @@ import {
 } from "../../validators/search.validator.js";
 
 let cachedLemmas: string[] | null = null;
+let lemmasCacheTimeout: NodeJS.Timeout | null = null;
+
+const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+
+function clearLemmasCache() {
+  cachedLemmas = null;
+  if (lemmasCacheTimeout) clearTimeout(lemmasCacheTimeout);
+  lemmasCacheTimeout = null;
+}
+
+function setLemmasCacheExpiry() {
+  if (lemmasCacheTimeout) clearTimeout(lemmasCacheTimeout);
+  lemmasCacheTimeout = setTimeout(clearLemmasCache, CACHE_TTL);
+}
 
 export async function getLemmas() {
   if (cachedLemmas) return cachedLemmas;
@@ -16,6 +30,7 @@ export async function getLemmas() {
   cachedLemmas = lemmas
     .filter(Boolean)
     .map((lem) => buckwalterToArabic(lem as string));
+  setLemmasCacheExpiry();
   return cachedLemmas;
 }
 

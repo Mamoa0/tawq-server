@@ -36,8 +36,8 @@ export const compareSurahsHandler = async (
   }
 
   // Root aggregations
-  const rootsA = new Set(statsA.deepInfo.rootsArray.map((r) => r.root));
-  const rootsB = new Set(statsB.deepInfo.rootsArray.map((r) => r.root));
+  const rootsA = new Set(statsA.deepInfo.rootsArray.map((r: any) => r.root));
+  const rootsB = new Set(statsB.deepInfo.rootsArray.map((r: any) => r.root));
   const sharedRoots = Array.from(rootsA).filter(r => rootsB.has(r));
   const uniqueToA = Array.from(rootsA).filter(r => !rootsB.has(r));
   const uniqueToB = Array.from(rootsB).filter(r => !rootsA.has(r));
@@ -123,24 +123,24 @@ export const compareRootsHandler = async (
   }
 
   // Root diffs
-  const sharedSurahs = statsA.deepInfo.surahs.filter(s => statsB.deepInfo.surahs.includes(s));
-  const uniqueSurahsA = statsA.deepInfo.surahs.filter(s => !statsB.deepInfo.surahs.includes(s));
-  const uniqueSurahsB = statsB.deepInfo.surahs.filter(s => !statsA.deepInfo.surahs.includes(s));
+  const sharedSurahs = statsA.deepInfo.surahs.filter((s: any) => statsB.deepInfo.surahs.includes(s));
+  const uniqueSurahsA = statsA.deepInfo.surahs.filter((s: any) => !statsB.deepInfo.surahs.includes(s));
+  const uniqueSurahsB = statsB.deepInfo.surahs.filter((s: any) => !statsA.deepInfo.surahs.includes(s));
 
-  const sharedPos = statsA.deepInfo.posSet.filter(p => statsB.deepInfo.posSet.includes(p));
-  const uniquePosA = statsA.deepInfo.posSet.filter(p => !statsB.deepInfo.posSet.includes(p));
-  const uniquePosB = statsB.deepInfo.posSet.filter(p => !statsA.deepInfo.posSet.includes(p));
+  const sharedPos = statsA.deepInfo.posSet.filter((p: any) => statsB.deepInfo.posSet.includes(p));
+  const uniquePosA = statsA.deepInfo.posSet.filter((p: any) => !statsB.deepInfo.posSet.includes(p));
+  const uniquePosB = statsB.deepInfo.posSet.filter((p: any) => !statsA.deepInfo.posSet.includes(p));
 
-  const sharedLemmas = statsA.deepInfo.lemmas.filter(l => statsB.deepInfo.lemmas.includes(l));
+  const sharedLemmas = statsA.deepInfo.lemmas.filter((l: any) => statsB.deepInfo.lemmas.includes(l));
 
   const tokensA = statsA.deepInfo.tokens;
   const tokensB = statsB.deepInfo.tokens;
   
   const versesA = new Set(tokensA.map((t: any) => `${t.surah}:${t.ayah}`));
   const versesB = new Set(tokensB.map((t: any) => `${t.surah}:${t.ayah}`));
-  const versesTogetherStr = Array.from(versesA).filter(v => versesB.has(v));
-  const versesTogether = versesTogetherStr.map(v => {
-    const [surah, ayah] = v.split(':');
+  const versesTogetherStr = Array.from(versesA).filter((v: any) => versesB.has(v));
+  const versesTogether = versesTogetherStr.map((v: any) => {
+    const [surah, ayah] = (v as string).split(':');
     return { surah: Number(surah), ayah: Number(ayah) };
   });
 
@@ -162,8 +162,8 @@ export const compareRootsHandler = async (
         frequency_diff: Math.abs((gA.count as number) - (gB.count as number)),
         same_phonetic_group: gA.phonetic_group === gB.phonetic_group,
         are_related:
-          (gA.related_phonetic && gA.related_phonetic.includes(statsB.surahBw)) ||
-          (gB.related_phonetic && gB.related_phonetic.includes(statsA.surahBw)) ||
+          (gA.related_phonetic && gA.related_phonetic.includes(statsB.rootBw)) ||
+          (gB.related_phonetic && gB.related_phonetic.includes(statsA.rootBw)) ||
           false,
       },
     },

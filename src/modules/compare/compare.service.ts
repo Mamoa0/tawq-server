@@ -8,55 +8,72 @@ export async function getSurahStats(surahNumber: number) {
   const surah = await SurahModel.findOne({ number: surahNumber }).lean();
   if (!surah) return null;
 
-  const tokens = await TokenModel.find({ surah: surahNumber }).lean();
+  const pipeline: any[] = [
+    { $match: { surah: surahNumber } },
+    {
+      $facet: {
+        rootStats: [
+          { $match: { ROOT: { $exists: true, $ne: null } } },
+          { $group: { _id: "$ROOT", count: { $sum: 1 } } },
+          { $sort: { count: -1 } },
+        ],
+        posStats: [
+          { $match: { POS: { $exists: true, $ne: null } } },
+          { $group: { _id: "$POS", count: { $sum: 1 } } },
+        ],
+        verbStats: [
+          { $group: {
+            _id: null,
+            PERF: { $sum: { $cond: ["$PERF", 1, 0] } },
+            IMPF: { $sum: { $cond: ["$IMPF", 1, 0] } },
+            IMPV: { $sum: { $cond: ["$IMPV", 1, 0] } },
+            totalTokens: { $sum: 1 },
+          }},
+        ],
+        uniqueWords: [
+          { $group: { _id: { surah: "$surah", ayah: "$ayah", word: "$word" } } },
+          { $count: "count" },
+        ],
+        uniqueSegments: [
+          { $group: { _id: "$form" } },
+          { $count: "count" },
+        ],
+      },
+    },
+  ];
 
-  const rootsMap = new Map<string, number>();
-  const posMap = new Map<string, number>();
-  const verbTenseMap = { PERF: 0, IMPF: 0, IMPV: 0 };
-  let uniqueWords = new Set<string>();
-  
-  tokens.forEach((t: any) => {
-    if (t.ROOT) {
-      rootsMap.set(t.ROOT, (rootsMap.get(t.ROOT) || 0) + 1);
-    }
-    if (t.POS) {
-      posMap.set(t.POS, (posMap.get(t.POS) || 0) + 1);
-    }
-    if (t.PERF) verbTenseMap.PERF++;
-    if (t.IMPF) verbTenseMap.IMPF++;
-    if (t.IMPV) verbTenseMap.IMPV++;
-    
-    // Grouping words by word number
-    uniqueWords.add(`${t.surah}:${t.ayah}:${t.word}`);
-  });
+  const [result] = await TokenModel.aggregate(pipeline);
 
-  const rootsArray = Array.from(rootsMap.entries())
-    .map(([root, count]) => ({ root: buckwalterToArabic(root), count }))
-    .sort((a, b) => b.count - a.count);
+  const rootStats = result.rootStats || [];
+  const posStats = result.posStats || [];
+  const verbStats = result.verbStats[0] || { PERF: 0, IMPF: 0, IMPV: 0, totalTokens: 0 };
+  const uniqueWordsData = result.uniqueWords[0] || { count: 0 };
+  const uniqueSegmentsData = result.uniqueSegments[0] || { count: 0 };
 
-  const totalRoots = rootsArray.length;
+  const rootsArray = rootStats
+    .map((r: any) => ({ root: buckwalterToArabic(r._id), count: r.count }))
+    .sort((a: any, b: any) => b.count - a.count);
+
+  const totalRoots = rootStats.length;
   const top10Roots = rootsArray.slice(0, 10);
-  
-  const totalPos = Array.from(posMap.values()).reduce((a, b) => a + b, 0);
+
+  const totalPos = posStats.reduce((sum: number, p: any) => sum + p.count, 0);
   const posDist: Record<string, string> = {};
-  for (const [pos, count] of posMap.entries()) {
-    posDist[pos] = ((count / totalPos) * 100).toFixed(2) + "%";
+  for (const pos of posStats) {
+    posDist[pos._id] = ((pos.count / totalPos) * 100).toFixed(2) + "%";
   }
 
-  const totalVerbs = verbTenseMap.PERF + verbTenseMap.IMPF + verbTenseMap.IMPV;
+  const totalVerbs = verbStats.PERF + verbStats.IMPF + verbStats.IMPV;
   const verbTenses = {
-    PERF: totalVerbs ? ((verbTenseMap.PERF / totalVerbs) * 100).toFixed(2) + "%" : "0%",
-    IMPF: totalVerbs ? ((verbTenseMap.IMPF / totalVerbs) * 100).toFixed(2) + "%" : "0%",
-    IMPV: totalVerbs ? ((verbTenseMap.IMPV / totalVerbs) * 100).toFixed(2) + "%" : "0%",
+    PERF: totalVerbs ? ((verbStats.PERF / totalVerbs) * 100).toFixed(2) + "%" : "0%",
+    IMPF: totalVerbs ? ((verbStats.IMPF / totalVerbs) * 100).toFixed(2) + "%" : "0%",
+    IMPV: totalVerbs ? ((verbStats.IMPV / totalVerbs) * 100).toFixed(2) + "%" : "0%",
   };
 
-  const totalWords = uniqueWords.size;
+  const totalWords = uniqueWordsData.count;
   const s = surah as any;
   const avgWordsPerAyah = totalWords / (s.verses_count as number);
-
-  // Quick repetition rate heuristic: (total tokens - unique segments) / total tokens
-  const uniqueSegments = new Set(tokens.map((t: any) => t.form)).size;
-  const repetitionRate = ((tokens.length - uniqueSegments) / tokens.length);
+  const repetitionRate = (verbStats.totalTokens - uniqueSegmentsData.count) / verbStats.totalTokens;
 
   return {
     general: {
@@ -82,27 +99,43 @@ export async function getRootStats(rootStr: string) {
   const root = await RootModel.findOne({ root: rootBw }).lean();
   if (!root) return null;
 
-  const tokens = await TokenModel.find({ ROOT: rootBw }).lean();
+  const pipeline: any[] = [
+    { $match: { ROOT: rootBw } },
+    {
+      $facet: {
+        surahStats: [
+          { $group: { _id: "$surah" } },
+          { $sort: { _id: 1 } },
+        ],
+        posStats: [
+          { $group: { _id: "$POS" } },
+        ],
+        lemmaStats: [
+          { $match: { LEM: { $exists: true, $ne: null } } },
+          { $group: { _id: "$LEM" } },
+        ],
+        tokensSample: [
+          { $project: { surah: 1, ayah: 1 } },
+          { $limit: 5000 },
+        ],
+      },
+    },
+  ];
 
-  const surahs = new Set<number>();
-  const posSet = new Set<string>();
-  const lemmasMap = new Map<string, number>();
+  const [result] = await TokenModel.aggregate(pipeline);
 
-  tokens.forEach((t: any) => {
-    if (t.surah) surahs.add(t.surah);
-    if (t.POS) posSet.add(t.POS);
-    if (t.LEM) {
-      lemmasMap.set(t.LEM, (lemmasMap.get(t.LEM) || 0) + 1);
-    }
-  });
+  const surahs = (result.surahStats || []).map((s: any) => s._id).filter((s: any) => s != null);
+  const posSet = (result.posStats || []).map((p: any) => p._id).filter((p: any) => p != null);
+  const lemmas = (result.lemmaStats || []).map((l: any) => buckwalterToArabic(l._id));
+  const tokens = (result.tokensSample || []).map((t: any) => ({ surah: t.surah, ayah: t.ayah }));
 
   return {
     general: root as any,
-    surahBw: rootBw,
+    rootBw: rootBw,
     deepInfo: {
-      surahs: Array.from(surahs),
-      posSet: Array.from(posSet),
-      lemmas: Array.from(lemmasMap.keys()).map(l => buckwalterToArabic(l)),
+      surahs,
+      posSet,
+      lemmas,
       tokens,
     },
   };
