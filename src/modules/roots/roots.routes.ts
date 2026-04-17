@@ -2,11 +2,13 @@ import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { getRoots, getRoot } from "./roots.service.js";
 
 export const getRootsHandler = async (
-  request: FastifyRequest,
+  request: FastifyRequest<{ Querystring: { page?: string; limit?: string } }>,
   reply: FastifyReply,
 ): Promise<void> => {
-  const result = await getRoots();
-  reply.send({ data: result });
+  const page = Math.max(1, parseInt(request.query.page || "1", 10) || 1);
+  const limit = Math.min(500, Math.max(1, parseInt(request.query.limit || "100", 10) || 100));
+  const result = await getRoots(page, limit);
+  reply.send(result);
 };
 
 export const getRootHandler = async (

@@ -1,6 +1,8 @@
 import "dotenv/config";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
+import mongoose from "mongoose";
 import { connectDB } from "./database/connection.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { searchRoutes } from "./modules/search/search.routes.js";
@@ -24,7 +26,14 @@ const startServer = async (): Promise<void> => {
   app.setErrorHandler(errorHandler);
 
   await app.register(cors, {
-    origin: true,
+    origin: process.env.CORS_ORIGIN || true,
+  });
+
+  await app.register(rateLimit, {
+    max: 100,
+    timeWindow: "1 minute",
+    // Compare endpoints are heavier — tighten their limit
+    keyGenerator: (request) => request.ip,
   });
 
   registerRoutes();
@@ -42,14 +51,19 @@ const startServer = async (): Promise<void> => {
     },
   });
 
-  app.get("/health", async (_request, _reply) => {
-    return { status: "ok" };
+  app.get("/health", async (_request, reply) => {
+    const dbState = mongoose.connection.readyState;
+    // 1 = connected
+    if (dbState !== 1) {
+      return reply.status(503).send({ status: "error", db: "disconnected" });
+    }
+    return { status: "ok", db: "connected" };
   });
 
-  await app.register(searchRoutes, { prefix: "/api/search" });
-  await app.register(quranRoutes, { prefix: "/api/quran" });
-  await app.register(rootsRoutes, { prefix: "/api/roots" });
-  await app.register(compareRoutes, { prefix: "/api/compare" });
+  await app.register(searchRoutes, { prefix: "/api/v1/search" });
+  await app.register(quranRoutes, { prefix: "/api/v1/quran" });
+  await app.register(rootsRoutes, { prefix: "/api/v1/roots" });
+  await app.register(compareRoutes, { prefix: "/api/v1/compare" });
 
   try {
     await connectDB();

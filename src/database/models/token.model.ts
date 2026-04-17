@@ -38,5 +38,6 @@ tokenSchema.index({ surah: 1, ayah: 1, word: 1 });
 tokenSchema.index({ ROOT: 1 });
 tokenSchema.index({ LEM: 1 });
 tokenSchema.index({ POS: 1 });
+tokenSchema.index({ form: 1 });
 
 export const Token = mongoose.models.Token || model("Token", tokenSchema);

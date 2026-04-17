@@ -5,7 +5,8 @@ import {
   SurahCompareParams,
   RootCompareParams,
 } from "../../validators/compare.validator.js";
-import { getSurahStats, getRootStats } from "./compare.service.js";
+import { getSurahStats, getRootStats, getCoOccurrenceVerses } from "./compare.service.js";
+import { formatZodError } from "../../utils/validation.js";
 import { buckwalterToArabic } from "../../utils/buckwalterToArabic.js";
 
 export const compareSurahsHandler = async (
@@ -17,7 +18,7 @@ export const compareSurahsHandler = async (
     reply.status(400).send({
       statusCode: 400,
       error: "Validation Error",
-      message: parsed.error.issues,
+      message: formatZodError(parsed.error),
     });
     return;
   }
@@ -45,7 +46,7 @@ export const compareSurahsHandler = async (
   const gA = statsA.general as any;
   const gB = statsB.general as any;
 
-  reply.send({
+  reply.send({ data: {
     general: {
       surahA: gA,
       surahB: gB,
@@ -92,7 +93,7 @@ export const compareSurahsHandler = async (
         b: statsB.deepInfo.coreTheme,
       },
     },
-  });
+  } });
 };
 
 export const compareRootsHandler = async (
@@ -104,7 +105,7 @@ export const compareRootsHandler = async (
     reply.status(400).send({
       statusCode: 400,
       error: "Validation Error",
-      message: parsed.error.issues,
+      message: formatZodError(parsed.error),
     });
     return;
   }
@@ -122,6 +123,10 @@ export const compareRootsHandler = async (
     return;
   }
 
+  const [versesTogether] = await Promise.all([
+    getCoOccurrenceVerses(statsA.rootBw, statsB.rootBw),
+  ]);
+
   // Root diffs
   const sharedSurahs = statsA.deepInfo.surahs.filter((s: any) => statsB.deepInfo.surahs.includes(s));
   const uniqueSurahsA = statsA.deepInfo.surahs.filter((s: any) => !statsB.deepInfo.surahs.includes(s));
@@ -133,21 +138,10 @@ export const compareRootsHandler = async (
 
   const sharedLemmas = statsA.deepInfo.lemmas.filter((l: any) => statsB.deepInfo.lemmas.includes(l));
 
-  const tokensA = statsA.deepInfo.tokens;
-  const tokensB = statsB.deepInfo.tokens;
-  
-  const versesA = new Set(tokensA.map((t: any) => `${t.surah}:${t.ayah}`));
-  const versesB = new Set(tokensB.map((t: any) => `${t.surah}:${t.ayah}`));
-  const versesTogetherStr = Array.from(versesA).filter((v: any) => versesB.has(v));
-  const versesTogether = versesTogetherStr.map((v: any) => {
-    const [surah, ayah] = (v as string).split(':');
-    return { surah: Number(surah), ayah: Number(ayah) };
-  });
-
   const gA = statsA.general;
   const gB = statsB.general;
 
-  reply.send({
+  reply.send({ data: {
     general: {
       rootA: {
         ...gA,
@@ -189,5 +183,5 @@ export const compareRootsHandler = async (
         shared: sharedLemmas,
       },
     },
-  });
+  } });
 };

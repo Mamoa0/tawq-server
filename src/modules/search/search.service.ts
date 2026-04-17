@@ -22,16 +22,22 @@ function setLemmasCacheExpiry() {
   lemmasCacheTimeout = setTimeout(clearLemmasCache, CACHE_TTL);
 }
 
-export async function getLemmas() {
-  if (cachedLemmas) return cachedLemmas;
-  const lemmas = await monogs
-    .collection<TokenDocument>("tokens")
-    .distinct("LEM");
-  cachedLemmas = lemmas
-    .filter(Boolean)
-    .map((lem) => buckwalterToArabic(lem as string));
-  setLemmasCacheExpiry();
-  return cachedLemmas;
+async function loadLemmasCache(): Promise<string[]> {
+  const lemmas = await monogs.collection<TokenDocument>("tokens").distinct("LEM");
+  return lemmas.filter(Boolean).map((lem) => buckwalterToArabic(lem as string));
+}
+
+export async function getLemmas(page = 1, limit = 100) {
+  if (!cachedLemmas) {
+    cachedLemmas = await loadLemmasCache();
+    setLemmasCacheExpiry();
+  }
+
+  const totalCount = cachedLemmas.length;
+  const totalPages = Math.ceil(totalCount / limit);
+  const data = cachedLemmas.slice((page - 1) * limit, page * limit);
+
+  return { data, totalCount, page, limit, totalPages };
 }
 
 export async function searchTokens(filter: TokenFilter) {

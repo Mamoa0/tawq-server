@@ -114,10 +114,6 @@ export async function getRootStats(rootStr: string) {
           { $match: { LEM: { $exists: true, $ne: null } } },
           { $group: { _id: "$LEM" } },
         ],
-        tokensSample: [
-          { $project: { surah: 1, ayah: 1 } },
-          { $limit: 5000 },
-        ],
       },
     },
   ];
@@ -127,16 +123,22 @@ export async function getRootStats(rootStr: string) {
   const surahs = (result.surahStats || []).map((s: any) => s._id).filter((s: any) => s != null);
   const posSet = (result.posStats || []).map((p: any) => p._id).filter((p: any) => p != null);
   const lemmas = (result.lemmaStats || []).map((l: any) => buckwalterToArabic(l._id));
-  const tokens = (result.tokensSample || []).map((t: any) => ({ surah: t.surah, ayah: t.ayah }));
 
   return {
     general: root as any,
-    rootBw: rootBw,
-    deepInfo: {
-      surahs,
-      posSet,
-      lemmas,
-      tokens,
-    },
+    rootBw,
+    deepInfo: { surahs, posSet, lemmas },
   };
+}
+
+export async function getCoOccurrenceVerses(rootBwA: string, rootBwB: string) {
+  const pipeline: any[] = [
+    { $match: { ROOT: { $in: [rootBwA, rootBwB] } } },
+    { $group: { _id: { surah: "$surah", ayah: "$ayah" }, roots: { $addToSet: "$ROOT" } } },
+    { $match: { roots: { $all: [rootBwA, rootBwB] } } },
+    { $project: { _id: 0, surah: "$_id.surah", ayah: "$_id.ayah" } },
+    { $sort: { surah: 1, ayah: 1 } },
+  ];
+
+  return TokenModel.aggregate(pipeline);
 }

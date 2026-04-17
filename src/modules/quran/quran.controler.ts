@@ -16,6 +16,7 @@ import {
   getAyahWithWords,
   getWordDetails,
 } from "./quran.service.js";
+import { formatZodError } from "../../utils/validation.js";
 
 export const getAllSurahsHandler = async (
   request: FastifyRequest,
@@ -34,7 +35,7 @@ export const getSurahByNumberHandler = async (
     reply.status(400).send({
       statusCode: 400,
       error: "Validation Error",
-      message: parsed.error.issues,
+      message: formatZodError(parsed.error),
     });
     return;
   }
@@ -63,7 +64,7 @@ export const getVersesByPageHandler = async (
     reply.status(400).send({
       statusCode: 400,
       error: "Validation Error",
-      message: parsed.error.issues,
+      message: formatZodError(parsed.error),
     });
     return;
   }
@@ -81,7 +82,7 @@ export const getAyahWithWordsHandler = async (
     reply.status(400).send({
       statusCode: 400,
       error: "Validation Error",
-      message: parsed.error.issues,
+      message: formatZodError(parsed.error),
     });
     return;
   }
@@ -106,7 +107,7 @@ export const getWordDetailsHandler = async (
     reply.status(400).send({
       statusCode: 400,
       error: "Validation Error",
-      message: parsed.error.issues,
+      message: formatZodError(parsed.error),
     });
     return;
   }

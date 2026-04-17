@@ -20,27 +20,36 @@ function setRootsCacheExpiry() {
   rootsCacheTimeout = setTimeout(clearRootsCache, CACHE_TTL);
 }
 
-export async function getRoots() {
-  if (cachedRoots) return cachedRoots;
-
+async function loadRootsCache(): Promise<string[]> {
   const roots = await monogs
     .collection<RootDocument>("roots")
-    .find({}, { projection: { root: 1 }, sort: { order: 1 } })
+    .find({}, { projection: { root: 1 } })
+    .sort({ order: 1 })
     .toArray();
 
   if (roots.length > 0) {
-    cachedRoots = roots.map((r) => buckwalterToArabic(r.root));
-  } else {
-    const distinctRoots = await monogs
-      .collection<TokenDocument>("tokens")
-      .distinct("ROOT");
-    cachedRoots = distinctRoots
-      .filter(Boolean)
-      .map((root) => buckwalterToArabic(root as string));
+    return roots.map((r) => buckwalterToArabic(r.root));
   }
 
-  setRootsCacheExpiry();
-  return cachedRoots;
+  const distinctRoots = await monogs
+    .collection<TokenDocument>("tokens")
+    .distinct("ROOT");
+  return distinctRoots
+    .filter(Boolean)
+    .map((root) => buckwalterToArabic(root as string));
+}
+
+export async function getRoots(page = 1, limit = 100) {
+  if (!cachedRoots) {
+    cachedRoots = await loadRootsCache();
+    setRootsCacheExpiry();
+  }
+
+  const totalCount = cachedRoots.length;
+  const totalPages = Math.ceil(totalCount / limit);
+  const data = cachedRoots.slice((page - 1) * limit, page * limit);
+
+  return { data, totalCount, page, limit, totalPages };
 }
 
 export async function getRoot(rootArg: string) {
