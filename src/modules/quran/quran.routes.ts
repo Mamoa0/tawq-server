@@ -5,6 +5,9 @@ import {
   getVersesByPageHandler,
   getAyahWithWordsHandler,
   getWordDetailsHandler,
+  getVersesByJuzHandler,
+  getVersesByHizbHandler,
+  getVersesBatchHandler,
 } from "./quran.controler.js";
 
 /**
@@ -17,4 +20,7 @@ export async function quranRoutes(app: FastifyInstance): Promise<void> {
   app.get("/surahs/:number/page/:page", getVersesByPageHandler);
   app.get("/surah/:s/ayah/:a", getAyahWithWordsHandler);
   app.get("/surah/:s/ayah/:a/word/:w", getWordDetailsHandler);
+  app.get("/juz/:juz", getVersesByJuzHandler);
+  app.get("/hizb/:hizb", getVersesByHizbHandler);
+  app.get("/verses", getVersesBatchHandler);
 }

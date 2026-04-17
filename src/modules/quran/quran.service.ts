@@ -86,3 +86,31 @@ export async function getWordDetails(
 
   return { ...(wordDetails as unknown as DefaultWordResponse), tokens };
 }
+
+export async function getVersesByJuz(juzNumber: number) {
+  return await monogs
+    .collection("verses")
+    .find({ juz: juzNumber })
+    .sort({ surah: 1, ayah: 1 })
+    .toArray();
+}
+
+export async function getVersesByHizb(hizbNumber: number) {
+  return await monogs
+    .collection("verses")
+    .find({ hizb: hizbNumber })
+    .sort({ surah: 1, ayah: 1 })
+    .toArray();
+}
+
+export async function getVersesBatch(refs: Array<{ surah: number; ayah: number }>) {
+  const pipeline: any[] = [
+    {
+      $match: {
+        $or: refs.map((ref) => ({ surah: ref.surah, ayah: ref.ayah })),
+      },
+    },
+    { $sort: { surah: 1, ayah: 1 } },
+  ];
+  return await monogs.collection("verses").aggregate(pipeline).toArray();
+}

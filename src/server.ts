@@ -9,6 +9,7 @@ import { searchRoutes } from "./modules/search/search.routes.js";
 import { quranRoutes } from "./modules/quran/quran.routes.js";
 import { rootsRoutes } from "./modules/roots/roots.routes.js";
 import compareRoutes from "./modules/compare/compare.routes.js";
+import { statsRoutes } from "./modules/stats/stats.routes.js";
 import { generateOpenAPI } from "./docs/openapi.js";
 import { registerRoutes } from "./docs/routes.js";
 import scalarApiReference from "@scalar/fastify-api-reference";
@@ -64,6 +65,7 @@ const startServer = async (): Promise<void> => {
   await app.register(quranRoutes, { prefix: "/api/v1/quran" });
   await app.register(rootsRoutes, { prefix: "/api/v1/roots" });
   await app.register(compareRoutes, { prefix: "/api/v1/compare" });
+  await app.register(statsRoutes, { prefix: "/api/v1/stats" });
 
   try {
     await connectDB();

@@ -99,3 +99,55 @@ export async function getRoot(rootArg: string) {
       .map((f: string) => buckwalterToArabic(f)),
   };
 }
+
+export async function getRootOccurrences(rootArg: string) {
+  const rootBw = arabicToBuckwalter(rootArg);
+
+  const pipeline: any[] = [
+    { $match: { ROOT: rootBw } },
+    {
+      $group: {
+        _id: { surah: "$surah", ayah: "$ayah" },
+      },
+    },
+    { $sort: { "_id.surah": 1, "_id.ayah": 1 } },
+    {
+      $project: {
+        _id: 0,
+        surah: "$_id.surah",
+        ayah: "$_id.ayah",
+      },
+    },
+  ];
+
+  const occurrences = await monogs
+    .collection<TokenDocument>("tokens")
+    .aggregate(pipeline)
+    .toArray();
+
+  return {
+    root: buckwalterToArabic(rootBw),
+    count: occurrences.length,
+    occurrences,
+  };
+}
+
+export async function getRootCoOccurrence(rootArg: string) {
+  const rootBw = arabicToBuckwalter(rootArg);
+
+  const rootData = await monogs
+    .collection<any>("roots")
+    .findOne({ root: rootBw }, { projection: { co_occurring: 1 } });
+
+  if (!rootData) return null;
+
+  const coOccurring = (rootData.co_occurring || []).map((item: any) => ({
+    root: buckwalterToArabic(item.root),
+    count: item.count,
+  }));
+
+  return {
+    root: buckwalterToArabic(rootBw),
+    co_occurring: coOccurring,
+  };
+}
