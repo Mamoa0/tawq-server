@@ -1,5 +1,6 @@
 import { FastifyInstance, FastifyRequest, FastifyReply } from "fastify";
 import { getGlobalStats } from "./stats.service.js";
+import { registerCachePolicy, CacheProfile } from "../../utils/cache.js";
 
 export const getStatsHandler = async (
   _request: FastifyRequest,
@@ -10,5 +11,11 @@ export const getStatsHandler = async (
 };
 
 export async function statsRoutes(app: FastifyInstance): Promise<void> {
+  // Global stats are aggregated from immutable seed data — the numbers
+  // don't change between deploys, so we cache aggressively.
+  registerCachePolicy(app, {
+    "/": { value: CacheProfile.IMMUTABLE },
+  });
+
   app.get("/", getStatsHandler);
 }

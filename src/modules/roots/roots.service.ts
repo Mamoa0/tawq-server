@@ -151,3 +151,134 @@ export async function getRootCoOccurrence(rootArg: string) {
     co_occurring: coOccurring,
   };
 }
+
+export async function searchRootsAutocomplete(query: string, limit = 20) {
+  if (!query || query.length === 0) {
+    if (!cachedRoots) {
+      cachedRoots = await loadRootsCache();
+      setRootsCacheExpiry();
+    }
+    return cachedRoots.slice(0, limit);
+  }
+
+  const queryBw = arabicToBuckwalter(query);
+  const pattern = new RegExp(`^${queryBw.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`);
+
+  const matches = await monogs
+    .collection<RootDocument>("roots")
+    .find({ root: { $regex: pattern } })
+    .sort({ count: -1 })
+    .limit(limit)
+    .toArray();
+
+  return matches.map((r) => buckwalterToArabic(r.root));
+}
+
+export async function getRootNetwork(rootArg: string) {
+  const rootBw = arabicToBuckwalter(rootArg);
+
+  const pipeline: any[] = [
+    { $match: { ROOT: rootBw } },
+    { $group: { _id: { surah: "$surah", ayah: "$ayah" } } },
+    {
+      $lookup: {
+        from: "tokens",
+        let: { s: "$_id.surah", a: "$_id.ayah" },
+        pipeline: [
+          {
+            $match: {
+              $expr: { $and: [{ $eq: ["$surah", "$$s"] }, { $eq: ["$ayah", "$$a"] }] },
+              ROOT: { $exists: true, $ne: null },
+            },
+          },
+          { $group: { _id: "$ROOT" } },
+        ],
+        as: "coRoots",
+      },
+    },
+    { $unwind: "$coRoots" },
+    { $match: { "coRoots._id": { $ne: rootBw } } },
+    { $group: { _id: "$coRoots._id", weight: { $sum: 1 } } },
+    { $sort: { weight: -1 } },
+    { $limit: 30 },
+  ];
+
+  const edges = await monogs.collection<TokenDocument>("tokens").aggregate(pipeline).toArray();
+  if (!edges.length) return null;
+
+  const centerCount = await monogs.collection("tokens").countDocuments({ ROOT: rootBw });
+
+  const nodes = [
+    { root: buckwalterToArabic(rootBw), count: centerCount, is_center: true },
+    ...edges.map((e: any) => ({ root: buckwalterToArabic(e._id), count: e.weight, is_center: false })),
+  ];
+
+  return {
+    center: buckwalterToArabic(rootBw),
+    nodes,
+    edges: edges.map((e: any) => ({
+      source: buckwalterToArabic(rootBw),
+      target: buckwalterToArabic(e._id),
+      weight: e.weight,
+    })),
+  };
+}
+
+export async function getRootSurahDistribution(rootArg: string) {
+  const rootBw = arabicToBuckwalter(rootArg);
+
+  const pipeline: any[] = [
+    { $match: { ROOT: rootBw } },
+    { $group: { _id: "$surah", count: { $sum: 1 } } },
+    { $sort: { _id: 1 } },
+    { $project: { _id: 0, surah: "$_id", count: 1 } },
+  ];
+
+  const surahs = await monogs
+    .collection<TokenDocument>("tokens")
+    .aggregate(pipeline)
+    .toArray();
+
+  if (!surahs.length) return null;
+
+  return {
+    root: buckwalterToArabic(rootBw),
+    total_occurrences: surahs.reduce((s: number, r: any) => s + r.count, 0),
+    surahs,
+  };
+}
+
+export async function getLemmasByRoot(rootArg: string) {
+  const rootBw = arabicToBuckwalter(rootArg);
+
+  const pipeline: any[] = [
+    { $match: { ROOT: rootBw } },
+    {
+      $group: {
+        _id: "$LEM",
+        count: { $sum: 1 },
+      },
+    },
+    { $sort: { count: -1 } },
+    {
+      $project: {
+        _id: 0,
+        lemma: "$_id",
+        count: 1,
+      },
+    },
+  ];
+
+  const lemmas = await monogs
+    .collection<TokenDocument>("tokens")
+    .aggregate(pipeline)
+    .toArray();
+
+  return {
+    root: buckwalterToArabic(rootBw),
+    lemmas: lemmas.map((l: any) => ({
+      lemma: buckwalterToArabic(l.lemma),
+      count: l.count,
+    })),
+  };
+}

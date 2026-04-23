@@ -131,7 +131,10 @@ export async function getRootStats(rootStr: string) {
   };
 }
 
-export async function getCoOccurrenceVerses(rootBwA: string, rootBwB: string) {
+export async function getCoOccurrenceVerses(
+  rootBwA: string,
+  rootBwB: string,
+): Promise<Array<{ surah: number; ayah: number }>> {
   const pipeline: any[] = [
     { $match: { ROOT: { $in: [rootBwA, rootBwB] } } },
     { $group: { _id: { surah: "$surah", ayah: "$ayah" }, roots: { $addToSet: "$ROOT" } } },
@@ -140,5 +143,5 @@ export async function getCoOccurrenceVerses(rootBwA: string, rootBwB: string) {
     { $sort: { surah: 1, ayah: 1 } },
   ];
 
-  return TokenModel.aggregate(pipeline);
+  return await TokenModel.aggregate(pipeline).exec();
 }

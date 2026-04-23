@@ -9,6 +9,8 @@ dist/
 
 # Environment variables
 .env
+.env.*
+!.env.example
 
 # Logs
 npm-debug.log*
@@ -22,3 +24,5 @@ quranic-corpus-morphology-0.4.txt
 # OS files
 .DS_Store
 Thumbs.db
+
+.claude/*

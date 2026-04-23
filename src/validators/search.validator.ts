@@ -11,11 +11,11 @@ export const searchQuerySchema = z
     ayah: z.coerce.number().int().min(1).optional(),
     word: z.coerce.number().int().min(1).optional(),
     segment: z.coerce.number().int().min(1).optional(),
-    form: z.string().min(1).optional(),
-    tag: z.string().min(1).optional(),
-    POS: z.string().min(1).optional(),
-    ROOT: z.string().min(1).optional(),
-    LEM: z.string().min(1).optional(),
+    form: z.string().min(1).max(100).optional(),
+    tag: z.string().min(1).max(20).optional(),
+    POS: z.string().min(1).max(10).optional(),
+    ROOT: z.string().min(1).max(20).optional(),
+    LEM: z.string().min(1).max(100).optional(),
     STEM: z.coerce.boolean().optional(),
     GEN: z.coerce.boolean().optional(),
     ACC: z.coerce.boolean().optional(),
@@ -50,3 +50,42 @@ export const tokenDocumentSchema = z
   .openapi("TokenDocument");
 
 export type TokenDocument = z.infer<typeof tokenDocumentSchema>;
+
+export const morphologySearchSchema = z
+  .object({
+    surah: z.coerce.number().int().min(1).max(114).optional(),
+    ayah: z.coerce.number().int().min(1).optional(),
+    pos: z.enum(["V", "N", "ADJ", "ADV", "PRON", "DEM", "REL", "NUM", "P", "CONJ", "PN", "NEG"]).optional(),
+    tense: z.enum(["PERF", "IMPF", "IMPV"]).optional(),
+    case: z.enum(["NOM", "ACC", "GEN"]).optional(),
+    voice: z.enum(["ACT", "PASS"]).optional(),
+    number: z.enum(["MS", "MP", "FS", "FP", "MD", "FD"]).optional(),
+    gender: z.enum(["M", "F"]).optional(),
+    pcpl: z.coerce.boolean().optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .openapi("MorphologySearch");
+
+export type MorphologyFilter = z.infer<typeof morphologySearchSchema>;
+
+export const phraseSearchSchema = z
+  .object({
+    q: z.string().min(1).max(300).describe("Phrase to search in verse translations"),
+    surah: z.coerce.number().int().min(1).max(114).optional(),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  })
+  .openapi("PhraseSearch");
+
+export type PhraseSearch = z.infer<typeof phraseSearchSchema>;
+
+export const verseSearchSchema = z
+  .object({
+    q: z.string().min(1).max(200).describe("Search query for verse translation"),
+    page: z.coerce.number().int().min(1).default(1),
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+  })
+  .openapi("VerseSearch");
+
+export type VerseSearch = z.infer<typeof verseSearchSchema>;

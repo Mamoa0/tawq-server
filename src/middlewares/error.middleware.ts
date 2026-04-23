@@ -13,15 +13,12 @@ export const errorHandler = (
   request: FastifyRequest,
   reply: FastifyReply,
 ): void => {
-
-  if (process.env.NODE_ENV !== "production") {
-    console.error(`[Error] ${request.method} ${request.url}`);
-    console.error(error.stack);
-  } else {
-    request.log.error(error.message);
-  }
-
   const statusCode = error.statusCode || 500;
+  const isDev = process.env.NODE_ENV !== "production";
+
+  // Log with the Fastify (Pino) logger so the error is correlated with
+  // the request via req.id, not dumped to console with no structure.
+  request.log.error({ err: error, statusCode }, "request failed");
 
   const response = {
     statusCode,
@@ -29,7 +26,10 @@ export const errorHandler = (
       statusCode === 500
         ? "Internal Server Error"
         : error.code || "Bad Request",
-    message: error.message || "An unexpected error occurred",
+    message:
+      statusCode === 500 && !isDev
+        ? "An unexpected error occurred"
+        : error.message || "An unexpected error occurred",
   };
 
   reply.status(statusCode).send(response);

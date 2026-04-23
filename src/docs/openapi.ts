@@ -2,6 +2,7 @@ import {
   OpenAPIRegistry,
   OpenApiGeneratorV3,
 } from "@asteasolutions/zod-to-openapi";
+import { env } from "../config/env.js";
 
 export const registry = new OpenAPIRegistry();
 
@@ -15,6 +16,6 @@ export function generateOpenAPI() {
       title: "Quran API",
       description: "API for Quran and Search functionality",
     },
-    servers: [{ url: "http://localhost:" + process.env.PORT }],
+    servers: [{ url: env.API_URL }],
   });
 }

@@ -1,0 +1,51 @@
+# Keep the build context small and avoid leaking host artifacts into
+# the image. This also makes `npm ci` deterministic inside the builder
+# (no local node_modules bleeding in).
+
+# VCS
+.git
+.gitignore
+.gitattributes
+
+# Secrets — NEVER copy real env files into the image. Deployments
+# should inject env via the orchestrator (k8s secrets, ECS, Fly, etc.).
+.env
+.env.*
+!.env.example
+
+# Node / build output
+node_modules
+dist
+coverage
+*.log
+npm-debug.log*
+
+# Editor / OS cruft
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+
+# Docs & repo meta — not needed at runtime
+README.md
+PRD.md
+PRODUCTION_READINESS_REVIEW.md
+CLAUDE.md
+LICENSE
+.claude
+
+# Seed data — these are large (~30MB) and only needed by the seed
+# scripts, not by the running server. Bake them into a separate
+# "seeder" image or mount them at seed time.
+quran_data.json
+quranic-corpus-morphology-0.4.txt
+
+# Test artifacts (no test runner configured today, but ignore
+# pre-emptively so they don't sneak into the image).
+testsprite_tests
+tests
+__tests__
+
+# Container meta
+Dockerfile
+.dockerignore
