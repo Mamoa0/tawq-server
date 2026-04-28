@@ -26,6 +26,8 @@ No test framework is configured.
 PORT=5000
 MONGO_URI=mongodb://localhost:27017/quran_db
 GEMINI_API_KEY=<key>         # Required for --semanticRoots script only
+API_KEY_PEPPER=<32+ char hex string>  # Required for API key authentication
+API_KEY_HEADER=X-API-Key     # HTTP header name for API key authentication
 ```
 
 ## Architecture

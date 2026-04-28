@@ -7,6 +7,8 @@ const envSchema = z.object({
   CORS_ORIGIN: z.string().default("http://localhost:3000"),
   API_URL: z.string().url().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  API_KEY_PEPPER: z.string().min(32, "API_KEY_PEPPER must be at least 32 characters"),
+  API_KEY_HEADER: z.string().default("X-API-Key"),
 });
 
 const parsed = envSchema.parse(process.env);

@@ -26,3 +26,7 @@ quranic-corpus-morphology-0.4.txt
 Thumbs.db
 
 .claude/*
+
+specs/*
+.opencode/*
+.specify/*
