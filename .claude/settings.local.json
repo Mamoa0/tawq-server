@@ -13,7 +13,9 @@
       "mcp__TestSprite__testsprite_generate_backend_test_plan",
       "mcp__TestSprite__testsprite_generate_standardized_prd",
       "Bash(node \"C:\\\\Users\\\\ORIGINAL\\\\AppData\\\\Local\\\\npm-cache\\\\_npx\\\\8ddf6bea01b2519d\\\\node_modules\\\\@testsprite\\\\testsprite-mcp\\\\dist\\\\index.js\" generateCodeAndExecute)",
-      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")"
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(openssl rand *)",
+      "Bash(npm test *)"
     ]
   }
 }

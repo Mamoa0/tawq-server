@@ -51,6 +51,10 @@ class KeyValidationCache {
   invalidate(hashedKey: string): void {
     this.cache.delete(hashedKey);
   }
+
+  clear(): void {
+    this.cache.clear();
+  }
 }
 
 const cache = new KeyValidationCache();
@@ -125,4 +129,11 @@ export const validateKey = async (plaintext: string): Promise<ValidationResult> 
 export const invalidateCacheEntry = (plaintext: string): void => {
   const hashedKey = hmacKey(plaintext);
   cache.invalidate(hashedKey);
+};
+
+/**
+ * Clear the entire cache (used in tests to reset state between tests).
+ */
+export const clearCache = (): void => {
+  cache.clear();
 };

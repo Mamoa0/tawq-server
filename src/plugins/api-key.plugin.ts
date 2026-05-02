@@ -30,7 +30,7 @@ const EXEMPT_PATHS = ["/reference", "/openapi.json", "/health", "/ready"];
 
 const isExemptPath = (url: string): boolean => {
   const path = url.split("?")[0];
-  return EXEMPT_PATHS.includes(path) || path.startsWith("/reference");
+  return EXEMPT_PATHS.includes(path) || path === "/reference" || path.startsWith("/reference/");
 };
 
 /**
@@ -63,9 +63,21 @@ class InvalidKeyRateLimiter {
 
     return { allowed: false, ttl: bucket.resetAt - now };
   }
+
+  clear(): void {
+    this.buckets.clear();
+  }
 }
 
 const rateLimiter = new InvalidKeyRateLimiter();
+
+/**
+ * Reset the in-process invalid-key rate-limiter buckets.
+ * Used by tests to ensure isolation across files; not for production use.
+ */
+export const clearRateLimiter = (): void => {
+  rateLimiter.clear();
+};
 
 const _apiKeyPlugin: FastifyPluginAsync = async (fastify) => {
   fastify.addHook(
@@ -126,7 +138,7 @@ const _apiKeyPlugin: FastifyPluginAsync = async (fastify) => {
 
       // Return 401 with stable body shape
       const error = Object.assign(
-        new Error("The supplied API key is invalid, revoked, or expired."),
+        new Error("The supplied API key is invalid."),
         { statusCode: 401 },
       ) as FastifyError;
 

@@ -28,50 +28,55 @@ describe("Contract: Transport-Only Header Authentication", () => {
   it("valid key in query string ?apiKey=... → treated as anonymous", async () => {
     const response = await testApp.app.inject({
       method: "GET",
-      url: `/api/v1/quran/surahs?apiKey=${validPlainKey}`,
+      url: `/__test/whoami?apiKey=${validPlainKey}`,
     });
 
-    // Should succeed but as anonymous, not authenticated
+    // Should succeed but as anonymous (keyId should be null)
     expect(response.statusCode).toBe(200);
+    expect(response.json().keyId).toBeNull();
   });
 
   it("valid key in POST body → treated as anonymous", async () => {
     const response = await testApp.app.inject({
       method: "GET",
-      url: "/api/v1/quran/surahs",
+      url: "/__test/whoami",
       payload: {
         apiKey: validPlainKey,
       },
     });
 
-    // Should succeed as anonymous
+    // Should succeed as anonymous (keyId should be null)
     expect(response.statusCode).toBe(200);
+    expect(response.json().keyId).toBeNull();
   });
 
   it("valid key in Authorization: Bearer header → treated as anonymous", async () => {
     const response = await testApp.app.inject({
       method: "GET",
-      url: "/api/v1/quran/surahs",
+      url: "/__test/whoami",
       headers: {
         authorization: `Bearer ${validPlainKey}`,
       },
     });
 
-    // Should succeed as anonymous, not authenticated
+    // Should succeed as anonymous (keyId should be null), not authenticated
     expect(response.statusCode).toBe(200);
+    expect(response.json().keyId).toBeNull();
   });
 
   it("X-API-Key header is the ONLY transport mechanism", async () => {
     const response = await testApp.app.inject({
       method: "GET",
-      url: "/api/v1/quran/surahs",
+      url: "/__test/whoami",
       headers: {
         "x-api-key": validPlainKey,
       },
     });
 
-    // Only X-API-Key header should work for authentication
+    // Only X-API-Key header should work for authentication (keyId should be set)
     expect(response.statusCode).toBe(200);
+    expect(response.json().keyId).toBeDefined();
+    expect(response.json().keyId).not.toBeNull();
   });
 
   it("key in query string is not leaked in logs/headers", async () => {

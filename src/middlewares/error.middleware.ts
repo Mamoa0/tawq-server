@@ -25,7 +25,7 @@ export const errorHandler = (
     reply.header("Content-Type", "application/json; charset=utf-8");
     reply.status(401).send({
       error: "InvalidApiKey",
-      message: "The supplied API key is invalid, revoked, or expired.",
+      message: "The supplied API key is invalid.",
       requestId: request.id,
     });
     return;

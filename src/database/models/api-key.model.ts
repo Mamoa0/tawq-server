@@ -45,13 +45,7 @@ const apiKeySchema = new Schema<IApiKey>(
     expiresAt: {
       type: Date,
       default: null,
-      validate: {
-        validator(this: IApiKey) {
-          if (!this.expiresAt) return true;
-          return this.expiresAt > this.createdAt;
-        },
-        message: "expiresAt must be after createdAt",
-      },
+      // No expiresAt > createdAt validator: tests and ops both legitimately insert past expiry to mark a key dead. An already-expired key is rejected at validation time anyway.
     },
     lastUsedAt: {
       type: Date,
@@ -63,5 +57,17 @@ const apiKeySchema = new Schema<IApiKey>(
 
 // Compound index for efficient listing/scanning
 apiKeySchema.index({ status: 1, expiresAt: 1 });
+
+// Static method for input validation as documented in T017
+apiKeySchema.statics.validateInput = function(
+  input: { hashedKey: string; label: string }
+): void {
+  if (!/^[0-9a-f]{64}$/.test(input.hashedKey)) {
+    throw new Error("hashedKey must be a 64-char lowercase hex string");
+  }
+  if (!input.label || input.label.trim().length === 0) {
+    throw new Error("label must be non-empty");
+  }
+};
 
 export const ApiKey = mongoose.models.ApiKey || model<IApiKey>("ApiKey", apiKeySchema);

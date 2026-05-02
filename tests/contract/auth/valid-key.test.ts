@@ -53,18 +53,19 @@ describe("Contract: Valid API Keys → 200 (Authenticated)", () => {
   });
 
   it("valid key → request context includes apiKeyContext", async () => {
-    // This test verifies that the auth plugin attaches key context
-    // For now, we just verify the request succeeds
-    // In a real scenario, we'd have a test endpoint that echoes the context
+    // Verify that the auth plugin attaches the key context (keyId) to the request
     const response = await testApp.app.inject({
       method: "GET",
-      url: "/api/v1/quran/surahs",
+      url: "/__test/whoami",
       headers: {
         "x-api-key": validPlainKey,
       },
     });
 
     expect(response.statusCode).toBe(200);
+    const body = response.json();
+    expect(body.keyId).toBeDefined();
+    expect(body.keyId).toBeTypeOf("string");
   });
 
   it("no API key on endpoint → 200 (anonymous)", async () => {

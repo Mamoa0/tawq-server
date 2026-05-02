@@ -53,14 +53,10 @@ describe("Contract: Empty/Malformed API Keys → 401", () => {
     const response = await testApp.app.inject({
       method: "GET",
       url: "/api/v1/quran/surahs",
-      headers: {
-        "x-api-key": undefined,
-      },
+      // Don't include the header at all, which simulates "no value"
     });
 
     // No header means anonymous → 200 (per spec §3)
-    // But let's test with malformed content if header is present
-    // This test may need adjustment based on spec interpretation
     expect(response.statusCode).toBe(200);
   });
 

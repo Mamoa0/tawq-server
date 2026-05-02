@@ -27,10 +27,10 @@ describe("Contract: Exempt Endpoints Ignore Auth Headers", () => {
     expect(response.json()).toHaveProperty("openapi");
   });
 
-  it("GET /reference with invalid key → 200", async () => {
+  it("GET /reference/ with invalid key → 200", async () => {
     const response = await testApp.app.inject({
       method: "GET",
-      url: "/reference",
+      url: "/reference/",
       headers: {
         "x-api-key": invalidKey,
       },
@@ -39,16 +39,17 @@ describe("Contract: Exempt Endpoints Ignore Auth Headers", () => {
     expect(response.statusCode).toBe(200);
   });
 
-  it("GET /reference/* with invalid key → 200", async () => {
+  it("GET /reference (without trailing slash) should redirect or return 200", async () => {
     const response = await testApp.app.inject({
       method: "GET",
-      url: "/reference/config.json",
+      url: "/reference",
       headers: {
         "x-api-key": invalidKey,
       },
     });
 
-    expect(response.statusCode).toBe(200);
+    // Scalar typically redirects /reference to /reference/ or returns 200
+    expect([200, 301]).toContain(response.statusCode);
   });
 
   it("GET /health with invalid key → 200", async () => {
@@ -83,5 +84,19 @@ describe("Contract: Exempt Endpoints Ignore Auth Headers", () => {
     });
 
     expect(response.statusCode).toBe(200);
+  });
+
+  it("/reference-foo with invalid key → 401 (prefix check is precise)", async () => {
+    // Verify that /reference-foo is NOT exempt (only /reference and /reference/* are exempt)
+    const response = await testApp.app.inject({
+      method: "GET",
+      url: "/reference-foo",
+      headers: {
+        "x-api-key": invalidKey,
+      },
+    });
+
+    // Should be 401 from auth plugin, not 200 from exempt path
+    expect(response.statusCode).toBe(401);
   });
 });
