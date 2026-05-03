@@ -18,7 +18,17 @@ node --loader ts-node/esm src/scripts/index.ts --roots
 node --loader ts-node/esm src/scripts/index.ts --verify
 ```
 
-No test framework is configured.
+```bash
+npm test                # Run full Vitest suite (unit + contract + parity)
+npm test -- tests/parity            # OpenAPI ↔ Fastify parity tests (< 10s)
+npm test -- tests/contract/auth     # API-key auth contract tests
+npm run keys:create -- --label "local-dev"   # Issue an API key (prints plaintext once)
+npm run keys:revoke -- --id <objectId>        # Revoke a key
+```
+
+## Authentication
+
+Non-exempt routes require an `X-API-Key` header. Exempt paths: `/openapi.json`, `/reference`, `/reference/*`, `/health`, `/ready`. Invalid/revoked/expired/empty/malformed keys all return a stable 401 body `{error: "InvalidApiKey", message, requestId}` with `WWW-Authenticate: ApiKey realm="quran-api"`. See `specs/002-reviewable-honest-api/quickstart.md` for details and `docs/auth.md` for consumer usage.
 
 ## Environment Variables
 
