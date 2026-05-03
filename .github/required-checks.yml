@@ -1,0 +1,12 @@
+version: 1
+checks:
+  - name: correctness
+    description: Vitest correctness suite
+  - name: perf-gate
+    description: Performance regression gate
+  - name: openapi-parity
+    description: /openapi.json vs Fastify route inventory
+  - name: auth-contract
+    description: API-key 401 contract tests
+  - name: branch-protection
+    description: Verifies live GitHub Ruleset matches declared config

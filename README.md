@@ -1,5 +1,7 @@
 # Tawq Server
 
+[![CI](https://github.com/Mamoa0/tawq-server/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Mamoa0/tawq-server/actions/workflows/ci.yml)
+
 A Fastify-based REST API for exploring the Quranic text with deep linguistic analysis. Search verses, roots, morphological features, and statistical comparisons with zero external dependencies (except MongoDB).
 
 ## Quick Start

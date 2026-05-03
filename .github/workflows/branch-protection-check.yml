@@ -1,0 +1,29 @@
+name: Branch Protection Check
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  administration: read
+
+jobs:
+  branch-protection:
+    name: branch-protection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci
+      - name: Verify branch protection configuration
+        env:
+          GITHUB_TOKEN: ${{ secrets.BRANCH_PROTECTION_READ_TOKEN || secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: npx tsx scripts/verify-branch-protection.ts
