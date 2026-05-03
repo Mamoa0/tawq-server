@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import helmet from "@fastify/helmet";
+import { validatorCompiler } from "fastify-type-provider-zod";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
 import { apiKeyPlugin } from "./plugins/api-key.plugin.js";
@@ -11,8 +12,11 @@ import { quranRoutes } from "./modules/quran/quran.routes.js";
 import { rootsRoutes } from "./modules/roots/roots.routes.js";
 import compareRoutes from "./modules/compare/compare.routes.js";
 import { statsRoutes } from "./modules/stats/stats.routes.js";
-import { generateOpenAPI } from "./docs/openapi.js";
-import { registerRoutes } from "./docs/routes.js";
+import {
+  CollectedRoute,
+  generateOpenAPIFromRoutes,
+  isExcludedFromSpec,
+} from "./docs/openapi.js";
 import scalarApiReference from "@scalar/fastify-api-reference";
 
 /**
@@ -39,6 +43,28 @@ export const createApp = async (): Promise<FastifyInstance> => {
     requestIdHeader: "x-request-id",
     genReqId: () => randomUUID(),
   });
+
+  // Wire Zod type provider for request validation (T034)
+  // serializerCompiler is intentionally omitted: response schemas use z.any() data fields
+  // and the default JSON.stringify serializer avoids Zod's strip-unknown behavior.
+  app.setValidatorCompiler(validatorCompiler);
+
+  const collectedRoutes: CollectedRoute[] = [];
+  app.addHook("onRoute", (routeOptions) => {
+    const url = routeOptions.url;
+    if (!isExcludedFromSpec(url) && !(routeOptions.schema as CollectedRoute["schema"])?.summary) {
+      throw new Error(
+        `Route ${Array.isArray(routeOptions.method) ? routeOptions.method[0] : routeOptions.method} ${url} is missing schema.summary — every non-excluded route must be documented (contracts/openapi-parity §1)`,
+      );
+    }
+    collectedRoutes.push({
+      method: routeOptions.method,
+      url,
+      schema: routeOptions.schema as CollectedRoute["schema"],
+    });
+  });
+
+  app.decorate("getCollectedRoutes", () => [...collectedRoutes]);
 
   app.setErrorHandler(errorHandler);
 
@@ -125,13 +151,15 @@ export const createApp = async (): Promise<FastifyInstance> => {
   });
 
   // Register the API key authentication plugin BEFORE route modules
-  // so the preHandler runs for every non-exempt request
   await app.register(apiKeyPlugin);
 
-  registerRoutes();
-  const openApiDoc = generateOpenAPI();
-
-  app.get("/openapi.json", () => openApiDoc);
+  let cachedOpenApiDoc: object | null = null;
+  app.get("/openapi.json", async () => {
+    if (!cachedOpenApiDoc) {
+      cachedOpenApiDoc = generateOpenAPIFromRoutes(collectedRoutes);
+    }
+    return cachedOpenApiDoc;
+  });
 
   await app.register(scalarApiReference, {
     routePrefix: "/reference",
