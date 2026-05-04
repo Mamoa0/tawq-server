@@ -1,4 +1,5 @@
 import { TafsirSource } from "../../database/models/index.js";
+import { runIngestion } from "./runner.js";
 
 const V1_SOURCES = [
   {
@@ -46,13 +47,12 @@ export async function seedTafsirSources(slug?: string): Promise<void> {
 export interface IngestionOptions {
   fromSurah?: number;
   restart?: boolean;
+  unlock?: boolean;
 }
 
 export async function runTafsirIngestion(
   slug: string,
   options?: IngestionOptions,
 ): Promise<void> {
-  console.log(`⏳ Starting ingestion for: ${slug}`);
-  console.log("   (ingestion runner not yet implemented — stub)");
-  console.log(`   Options: fromSurah=${options?.fromSurah ?? "auto"}, restart=${options?.restart ?? false}`);
+  await runIngestion(slug, options);
 }

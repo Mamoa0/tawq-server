@@ -85,7 +85,7 @@ async function main() {
       await enrichVerses();
     }
 
-if (args.includes("--tafsir")) {
+    if (args.includes("--tafsir")) {
       const slugIndex = args.indexOf("--tafsir");
       const slug = args[slugIndex + 1];
       const registerOnly = args.includes("--register-only");
@@ -93,6 +93,7 @@ if (args.includes("--tafsir")) {
         ? parseInt(args[args.indexOf("--from") + 1], 10)
         : undefined;
       const restart = args.includes("--restart");
+      const unlock = args.includes("--unlock");
 
       if (!slug) {
         console.error("❌ Error: --tafsir requires a slug argument");
@@ -101,7 +102,7 @@ if (args.includes("--tafsir")) {
 
       await seedTafsirSources(slug);
       if (!registerOnly) {
-        await runTafsirIngestion(slug, { fromSurah, restart });
+        await runTafsirIngestion(slug, { fromSurah, restart, unlock });
       } else {
         console.log(`✅ Registered source: ${slug} (no ingestion)`);
       }

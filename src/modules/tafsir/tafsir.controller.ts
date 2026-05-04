@@ -19,6 +19,16 @@ export const listSourcesHandler = async (
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> => {
+  if (!(request as any).apiKeyContext) {
+    reply.status(401).send({
+      statusCode: 401,
+      error: "InvalidApiKey",
+      message: "API key required",
+      requestId: request.id,
+    });
+    return;
+  }
+
   const parsed = sourceListQuerySchema.safeParse(request.query);
   if (!parsed.success) {
     reply.status(400).send({
