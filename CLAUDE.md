@@ -1,4 +1,4 @@
-# CLAUDE.md
+﻿# CLAUDE.md
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
@@ -28,7 +28,9 @@ npm run keys:revoke -- --id <objectId>        # Revoke a key
 
 ## Authentication
 
-Non-exempt routes require an `X-API-Key` header. Exempt paths: `/openapi.json`, `/reference`, `/reference/*`, `/health`, `/ready`. Invalid/revoked/expired/empty/malformed keys all return a stable 401 body `{error: "InvalidApiKey", message, requestId}` with `WWW-Authenticate: ApiKey realm="quran-api"`. See `specs/002-reviewable-honest-api/quickstart.md` for details and `docs/auth.md` for consumer usage.
+Non-exempt routes require an `X-API-Key` header. Exempt paths: `/openapi.json`, `/reference`, `/reference/*`, `/health`, `/ready`, and `POST /api/v1/keys`. Invalid/revoked/expired/empty/malformed keys all return a stable 401 body `{error: "InvalidApiKey", message, requestId}` with `WWW-Authenticate: ApiKey realm="quran-api"`. See `specs/002-reviewable-honest-api/quickstart.md` for details and `docs/auth.md` for consumer usage.
+
+`POST /api/v1/keys` is the public self-service key endpoint (rate-limited: 5/IP/hour). Body: `{ label?: string }` (max 64 chars, defaults to `"self-service"`). Returns 201 with the plaintext key shown once.
 
 ## Environment Variables
 
