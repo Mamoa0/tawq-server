@@ -12,6 +12,7 @@ import { quranRoutes } from "./modules/quran/quran.routes.js";
 import { rootsRoutes } from "./modules/roots/roots.routes.js";
 import compareRoutes from "./modules/compare/compare.routes.js";
 import { statsRoutes } from "./modules/stats/stats.routes.js";
+import { keysRoutes } from "./modules/keys/keys.routes.js";
 import {
   CollectedRoute,
   generateOpenAPIFromRoutes,
@@ -168,6 +169,10 @@ export const createApp = async (): Promise<FastifyInstance> => {
       metaData: {
         title: "Quran API Documentation",
       },
+      persistAuth: true,
+      authentication: {
+        preferredSecurityScheme: "ApiKeyAuth",
+      },
     },
   });
 
@@ -220,6 +225,7 @@ export const createApp = async (): Promise<FastifyInstance> => {
     return { status: "ready" };
   });
 
+  await app.register(keysRoutes, { prefix: "/api/v1/keys" });
   await app.register(searchRoutes, { prefix: "/api/v1/search" });
   await app.register(quranRoutes, { prefix: "/api/v1/quran" });
   await app.register(rootsRoutes, { prefix: "/api/v1/roots" });
