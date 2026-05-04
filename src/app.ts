@@ -3,6 +3,7 @@ import Fastify, { FastifyInstance } from "fastify";
 import cors from "@fastify/cors";
 import rateLimit from "@fastify/rate-limit";
 import helmet from "@fastify/helmet";
+import compress from "@fastify/compress";
 import { validatorCompiler } from "fastify-type-provider-zod";
 import { env } from "./config/env.js";
 import { errorHandler } from "./middlewares/error.middleware.js";
@@ -13,6 +14,7 @@ import { rootsRoutes } from "./modules/roots/roots.routes.js";
 import compareRoutes from "./modules/compare/compare.routes.js";
 import { statsRoutes } from "./modules/stats/stats.routes.js";
 import { keysRoutes } from "./modules/keys/keys.routes.js";
+import { tafsirRoutes } from "./modules/tafsir/tafsir.routes.js";
 import {
   CollectedRoute,
   generateOpenAPIFromRoutes,
@@ -152,6 +154,8 @@ export const createApp = async (): Promise<FastifyInstance> => {
   });
 
   // Register the API key authentication plugin BEFORE route modules
+  await app.register(compress, { global: true, threshold: 1024, encodings: ["br", "gzip"] });
+
   await app.register(apiKeyPlugin);
 
   let cachedOpenApiDoc: object | null = null;
@@ -231,6 +235,7 @@ export const createApp = async (): Promise<FastifyInstance> => {
   await app.register(rootsRoutes, { prefix: "/api/v1/roots" });
   await app.register(compareRoutes, { prefix: "/api/v1/compare" });
   await app.register(statsRoutes, { prefix: "/api/v1/stats" });
+  await app.register(tafsirRoutes, { prefix: "/api/v1/tafsir" });
 
   return app;
 };

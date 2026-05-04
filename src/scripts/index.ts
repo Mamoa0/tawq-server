@@ -10,6 +10,7 @@ import { runCoOccurrence } from "./coOccurrence.js";
 import { verify } from "./verify.js";
 import { seedRootMeanings } from "./seedRootMeanings.js";
 import { enrichVerses, enrichSurahs } from "./enrichData.js";
+import { seedTafsirSources, runTafsirIngestion } from "./tafsir/index.js";
 
 
 const MONGO_URI = process.env.MONGO_URI || "mongodb://localhost:27017/quran_db";
@@ -84,8 +85,41 @@ async function main() {
       await enrichVerses();
     }
 
+if (args.includes("--tafsir")) {
+      const slugIndex = args.indexOf("--tafsir");
+      const slug = args[slugIndex + 1];
+      const registerOnly = args.includes("--register-only");
+      const fromSurah = args.includes("--from")
+        ? parseInt(args[args.indexOf("--from") + 1], 10)
+        : undefined;
+      const restart = args.includes("--restart");
+
+      if (!slug) {
+        console.error("❌ Error: --tafsir requires a slug argument");
+        process.exit(1);
+      }
+
+      await seedTafsirSources(slug);
+      if (!registerOnly) {
+        await runTafsirIngestion(slug, { fromSurah, restart });
+      } else {
+        console.log(`✅ Registered source: ${slug} (no ingestion)`);
+      }
+    }
+
     if (args.includes("--enrichSurahs") || args.includes("--all")) {
       await enrichSurahs();
+    }
+
+    if (args.includes("--rootMeanings")) {
+      const sourceArg = args[args.indexOf("--source") + 1];
+      const isAll = args.includes("--all");
+      const isDrop = args.includes("--drop");
+      await seedRootMeanings({ source: sourceArg, all: isAll, drop: isDrop });
+    }
+
+    if (args.includes("--verify") || args.includes("--all")) {
+      await verify();
     }
 
 

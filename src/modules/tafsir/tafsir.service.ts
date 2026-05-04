@@ -1,0 +1,159 @@
+import { TafsirSource, Tafsir } from "../../database/models/index.js";
+
+export interface SourceListItem {
+  slug: string;
+  name: { ar?: string; en?: string };
+  author: string;
+  language: string;
+  direction: "rtl" | "ltr";
+  format: "text" | "html";
+  grouping: "ayah" | "range";
+  homepage?: string;
+  license?: string;
+}
+
+export async function listSources(language?: string): Promise<SourceListItem[]> {
+  const query = language ? { language } : {};
+  const sources = await TafsirSource.find(query).lean().sort({ slug: 1 });
+  return sources.map((s) => ({
+    slug: s.slug,
+    name: s.name,
+    author: s.author,
+    language: s.language,
+    direction: s.direction,
+    format: s.format,
+    grouping: s.grouping,
+    homepage: s.homepage,
+    license: s.license,
+  }));
+}
+
+export interface TafsirResult {
+  source: {
+    slug: string;
+    name: { ar?: string; en?: string };
+    language: string;
+    direction: "rtl" | "ltr";
+    format: "text" | "html";
+  };
+  ayahStart: number;
+  ayahEnd: number;
+  text: string;
+}
+
+export interface FetchBundleResult {
+  results: TafsirResult[];
+  missing: string[];
+}
+
+export async function fetchBundle(
+  surah: number,
+  ayah: number,
+  requestedSlugs?: string[],
+): Promise<FetchBundleResult> {
+  const sources = await TafsirSource.find().lean();
+  const slugsToQuery = requestedSlugs?.length
+    ? sources.filter((s) => requestedSlugs.includes(s.slug)).map((s) => s.slug)
+    : sources.map((s) => s.slug);
+
+  const results: TafsirResult[] = [];
+  const missing: string[] = [];
+
+  const budget = parseInt(process.env.TAFSIR_DB_LOOKUP_BUDGET_MS || "800", 10);
+
+  await Promise.all(
+    slugsToQuery.map(async (slug) => {
+      try {
+        const entry = await Tafsir.findOne({
+          sourceSlug: slug,
+          surah,
+          ayahStart: { $lte: ayah },
+          ayahEnd: { $gte: ayah },
+        })
+          .lean();
+
+        if (entry) {
+          const sourceDoc = sources.find((src) => src.slug === slug)!;
+          const tafsirEntry = entry as { ayahStart: number; ayahEnd: number; text: string };
+          results.push({
+            source: {
+              slug: sourceDoc.slug,
+              name: sourceDoc.name,
+              language: sourceDoc.language,
+              direction: sourceDoc.direction,
+              format: sourceDoc.format,
+            },
+            ayahStart: tafsirEntry.ayahStart,
+            ayahEnd: tafsirEntry.ayahEnd,
+            text: tafsirEntry.text,
+          });
+        } else {
+          missing.push(slug);
+        }
+      } catch {
+        missing.push(slug);
+      }
+    }),
+  );
+
+  return { results, missing };
+}
+
+export async function getCoverageMapForSurahs(surahs: number[]): Promise<Map<number, Map<number, Set<string>>>> {
+  const coverage = new Map<number, Map<number, Set<string>>>();
+
+  const entries = await Tafsir.find({
+    surah: { $in: surahs },
+  })
+    .select("sourceSlug surah ayahStart ayahEnd")
+    .lean();
+
+  for (const entry of entries) {
+    if (!coverage.has(entry.surah)) {
+      coverage.set(entry.surah, new Map());
+    }
+    const surahMap = coverage.get(entry.surah)!;
+    for (let a = entry.ayahStart; a <= entry.ayahEnd; a++) {
+      if (!surahMap.has(a)) {
+        surahMap.set(a, new Set());
+      }
+      surahMap.get(a)!.add(entry.sourceSlug);
+    }
+  }
+
+  return coverage;
+}
+
+export function getTafsirSourcesForAyah(
+  coverageMap: Map<number, Map<number, Set<string>>>,
+  surah: number,
+  ayah: number,
+): string[] {
+  const surahMap = coverageMap.get(surah);
+  if (!surahMap) return [];
+  const sources = surahMap.get(ayah);
+  if (!sources) return [];
+  return Array.from(sources).sort();
+}
+
+const AYAH_COUNTS: Record<number, number> = {
+  1: 7, 2: 286, 3: 200, 4: 176, 5: 120, 6: 165, 7: 206, 8: 75, 9: 129, 10: 109,
+  11: 123, 12: 111, 13: 43, 14: 52, 15: 99, 16: 128, 17: 111, 18: 110, 19: 98, 20: 135,
+  21: 112, 22: 78, 23: 118, 24: 64, 25: 77, 26: 227, 27: 93, 28: 88, 29: 69, 30: 60,
+  31: 34, 32: 30, 33: 73, 34: 54, 35: 45, 36: 83, 37: 182, 38: 88, 39: 75, 40: 85,
+  41: 54, 42: 53, 43: 89, 44: 59, 45: 37, 46: 35, 47: 38, 48: 29, 49: 18, 50: 45,
+  51: 60, 52: 49, 53: 62, 54: 55, 55: 78, 56: 96, 57: 29, 58: 22, 59: 24, 60: 13,
+  61: 14, 62: 11, 63: 11, 64: 18, 65: 12, 66: 12, 67: 30, 68: 52, 69: 52, 70: 44,
+  71: 28, 72: 28, 73: 20, 74: 56, 75: 40, 76: 31, 77: 50, 78: 40, 79: 46, 80: 42,
+  81: 29, 82: 19, 83: 36, 84: 25, 85: 22, 86: 17, 87: 19, 88: 26, 89: 30, 90: 20,
+  91: 15, 92: 21, 93: 11, 94: 8, 95: 8, 96: 19, 97: 5, 98: 8, 99: 8, 100: 11,
+  101: 11, 102: 8, 103: 3, 104: 9, 105: 5, 106: 4, 107: 7, 108: 3, 109: 6, 110: 3,
+  111: 5, 112: 4, 113: 5, 114: 6,
+};
+
+export function validateSurahAyah(surah: number, ayah: number): string | null {
+  const maxAyah = AYAH_COUNTS[surah];
+  if (!maxAyah) return `Surah ${surah} does not exist`;
+  if (ayah < 1 || ayah > maxAyah) return `Ayah ${ayah} does not exist in Surah ${surah} (max: ${maxAyah})`;
+  return null;
+}
