@@ -28,9 +28,18 @@ import { createHash } from "node:crypto";
 
 const EXEMPT_PATHS = ["/reference", "/openapi.json", "/health", "/ready"];
 
-const isExemptPath = (url: string): boolean => {
+// Routes exempt by exact method + path (future auth-required routes on the same prefix are unaffected)
+const EXEMPT_ROUTES = new Set(["POST:/api/v1/keys"]);
+
+const isExemptPath = (url: string, method?: string): boolean => {
   const path = url.split("?")[0];
-  return EXEMPT_PATHS.includes(path) || path === "/reference" || path.startsWith("/reference/");
+  if (EXEMPT_PATHS.includes(path) || path === "/reference" || path.startsWith("/reference/")) {
+    return true;
+  }
+  if (method) {
+    return EXEMPT_ROUTES.has(`${method.toUpperCase()}:${path}`);
+  }
+  return false;
 };
 
 /**
@@ -84,7 +93,7 @@ const _apiKeyPlugin: FastifyPluginAsync = async (fastify) => {
     "preHandler",
     async (request: FastifyRequest, reply: FastifyReply) => {
       // Check if this is an exempt endpoint
-      if (isExemptPath(request.url)) {
+      if (isExemptPath(request.url, request.method)) {
         return; // Skip authentication for exempt endpoints
       }
 
