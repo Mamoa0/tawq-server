@@ -4,6 +4,8 @@ const tafsirIngestionStateSchema = new Schema(
   {
     sourceSlug: { type: String, required: true, unique: true },
     lastSurahCompleted: { type: Number, required: true, default: 0 },
+    runningSince: { type: Date, default: null },
+    runId: { type: String, default: null },
     updatedAt: { type: Date, required: true },
   },
   { timestamps: true },

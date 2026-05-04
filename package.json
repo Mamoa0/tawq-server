@@ -41,6 +41,7 @@
     "fastify-type-provider-zod": "^1.1.10",
     "mongoose": "^8.23.0",
     "openapi3-ts": "^4.5.0",
+    "p-limit": "^7.3.0",
     "pdf-parse": "^2.4.5",
     "quran-meta": "^6.0.17",
     "tsx": "^4.21.0",
