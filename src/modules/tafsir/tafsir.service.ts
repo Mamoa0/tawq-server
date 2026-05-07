@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { TafsirSource, Tafsir } from "../../database/models/index.js";
 
 export interface SourceListItem {
@@ -46,36 +47,124 @@ export interface FetchBundleResult {
   missing: string[];
 }
 
+const TAFSIR_DB_LOOKUP_BUDGET_MS = parseInt(
+  process.env.TAFSIR_DB_LOOKUP_BUDGET_MS || "800",
+  10,
+);
+
+interface CachedEntry {
+  data: TafsirResult | null;
+  generation: number;
+}
+
+const CACHE_MAX_ENTRIES = 50_000;
+const tafsirCache = new Map<string, CachedEntry>();
+let cacheOrder: string[] = [];
+
+function getCacheKey(slug: string, surah: number, ayah: number): string {
+  return `${slug}|${surah}|${ayah}`;
+}
+
+function setCache(key: string, entry: CachedEntry, generation: number): void {
+  if (tafsirCache.size >= CACHE_MAX_ENTRIES && !tafsirCache.has(key)) {
+    const oldest = cacheOrder.shift();
+    if (oldest) tafsirCache.delete(oldest);
+  }
+  tafsirCache.set(key, { ...entry, generation });
+  if (!cacheOrder.includes(key)) cacheOrder.push(key);
+}
+
+function getCache(key: string, currentGeneration: number): TafsirResult | null | "miss" {
+  const entry = tafsirCache.get(key);
+  if (!entry) return "miss";
+  if (entry.generation !== currentGeneration) {
+    tafsirCache.delete(key);
+    cacheOrder = cacheOrder.filter((k) => k !== key);
+    return "miss";
+  }
+  return entry.data;
+}
+
+export function createETag(
+  respondingSlugs: Array<{ slug: string; generation: number }>,
+  missingSlugs: string[],
+): string {
+  const sourceParts = respondingSlugs
+    .map((s) => `${s.slug}:${s.generation}`)
+    .sort()
+    .join("|");
+  const missingPart = [...missingSlugs].sort().join("|");
+  const content = `${sourceParts}#${missingPart}`;
+  const hash = createHash("sha1").update(content).digest("hex").slice(0, 16);
+  return `W/"${hash}"`;
+}
+
 export async function fetchBundle(
   surah: number,
   ayah: number,
   requestedSlugs?: string[],
-): Promise<FetchBundleResult> {
+): Promise<{ results: TafsirResult[]; missing: string[]; respondingSlugs: Array<{ slug: string; generation: number }> }> {
   const sources = await TafsirSource.find().lean();
-  const slugsToQuery = requestedSlugs?.length
-    ? sources.filter((s) => requestedSlugs.includes(s.slug)).map((s) => s.slug)
+  const registeredSlugSet = new Set(sources.map((s) => s.slug));
+
+  const allRequestedSlugs = requestedSlugs ?? [];
+  const unknownSlugs = requestedSlugs
+    ? allRequestedSlugs.filter((slug) => !registeredSlugSet.has(slug))
+    : [];
+
+  const slugsToQuery = allRequestedSlugs.length
+    ? sources.filter((s) => allRequestedSlugs.includes(s.slug)).map((s) => s.slug)
     : sources.map((s) => s.slug);
 
   const results: TafsirResult[] = [];
   const missing: string[] = [];
-
-  const budget = parseInt(process.env.TAFSIR_DB_LOOKUP_BUDGET_MS || "800", 10);
+  const respondingSlugs: Array<{ slug: string; generation: number }> = [];
 
   await Promise.all(
     slugsToQuery.map(async (slug) => {
+      const sourceDoc = sources.find((src) => src.slug === slug)!;
+      const generation = sourceDoc.generation;
+      const cacheKey = getCacheKey(slug, surah, ayah);
+
+      const cached = getCache(cacheKey, generation);
+      if (cached !== "miss") {
+        if (cached === null) {
+          missing.push(slug);
+        } else {
+          results.push(cached);
+          respondingSlugs.push({ slug, generation });
+        }
+        return;
+      }
+
       try {
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), TAFSIR_DB_LOOKUP_BUDGET_MS);
+
         const entry = await Tafsir.findOne({
           sourceSlug: slug,
           surah,
           ayahStart: { $lte: ayah },
           ayahEnd: { $gte: ayah },
         })
-          .lean();
+          .lean()
+          .then((doc) => {
+            clearTimeout(timeout);
+            return doc;
+          })
+          .catch((err) => {
+            clearTimeout(timeout);
+            if (err.name === "AbortError") {
+              const timeoutErr = new Error(`DB lookup timed out after ${TAFSIR_DB_LOOKUP_BUDGET_MS}ms`);
+              timeoutErr.name = "TimeoutError";
+              throw timeoutErr;
+            }
+            throw err;
+          });
 
         if (entry) {
-          const sourceDoc = sources.find((src) => src.slug === slug)!;
           const tafsirEntry = entry as { ayahStart: number; ayahEnd: number; text: string };
-          results.push({
+          const result: TafsirResult = {
             source: {
               slug: sourceDoc.slug,
               name: sourceDoc.name,
@@ -86,9 +175,13 @@ export async function fetchBundle(
             ayahStart: tafsirEntry.ayahStart,
             ayahEnd: tafsirEntry.ayahEnd,
             text: tafsirEntry.text,
-          });
+          };
+          results.push(result);
+          respondingSlugs.push({ slug, generation });
+          setCache(cacheKey, { data: result, generation }, generation);
         } else {
           missing.push(slug);
+          setCache(cacheKey, { data: null, generation }, generation);
         }
       } catch {
         missing.push(slug);
@@ -96,7 +189,13 @@ export async function fetchBundle(
     }),
   );
 
-  return { results, missing };
+  for (const unknownSlug of unknownSlugs) {
+    if (!missing.includes(unknownSlug)) {
+      missing.push(unknownSlug);
+    }
+  }
+
+  return { results, missing, respondingSlugs };
 }
 
 export async function getCoverageMapForSurahs(surahs: number[]): Promise<Map<number, Map<number, Set<string>>>> {
@@ -150,6 +249,11 @@ const AYAH_COUNTS: Record<number, number> = {
   101: 11, 102: 8, 103: 3, 104: 9, 105: 5, 106: 4, 107: 7, 108: 3, 109: 6, 110: 3,
   111: 5, 112: 4, 113: 5, 114: 6,
 };
+
+export function clearTafsirCache(): void {
+  tafsirCache.clear();
+  cacheOrder = [];
+}
 
 export function validateSurahAyah(surah: number, ayah: number): string | null {
   const maxAyah = AYAH_COUNTS[surah];

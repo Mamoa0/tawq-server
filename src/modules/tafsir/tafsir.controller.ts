@@ -1,5 +1,4 @@
 import { FastifyRequest, FastifyReply } from "fastify";
-import { createHash } from "node:crypto";
 import {
   surahParamSchema,
   ayahParamSchema,
@@ -12,6 +11,7 @@ import {
   listSources,
   fetchBundle,
   validateSurahAyah,
+  createETag,
 } from "./tafsir.service.js";
 import { formatZodError } from "../../utils/validation.js";
 
@@ -47,6 +47,16 @@ export const fetchTafsirHandler = async (
   request: FastifyRequest<{ Params: { surah: string; ayah: string }; Querystring: { sources?: string } }>,
   reply: FastifyReply,
 ): Promise<void> => {
+  if (!(request as any).apiKeyContext) {
+    reply.status(401).send({
+      statusCode: 401,
+      error: "InvalidApiKey",
+      message: "API key required",
+      requestId: request.id,
+    });
+    return;
+  }
+
   const surahParsed = surahParamSchema.safeParse(request.params.surah);
   if (!surahParsed.success) {
     reply.status(400).send({
@@ -85,14 +95,9 @@ export const fetchTafsirHandler = async (
     ? sourcesParam.split(",").map((s) => s.trim()).filter(Boolean)
     : undefined;
 
-  const { results, missing } = await fetchBundle(surah, ayah, requestedSlugs);
+  const { results, missing, respondingSlugs } = await fetchBundle(surah, ayah, requestedSlugs);
 
-  const allSlugs = [...results.map((r) => r.source.slug), ...missing].sort();
-  const maxIngestedAt = results.length > 0
-    ? Math.max(...results.map((r) => new Date(r.text.length).getTime()))
-    : Date.now();
-  const etagContent = `${maxIngestedAt}-${allSlugs.join(",")}-${missing.join(",")}`;
-  const etag = `W/"${createHash("sha1").update(etagContent).digest("hex").slice(0, 16)}"`;
+  const etag = createETag(respondingSlugs, missing);
 
   const ifNoneMatch = request.headers["if-none-match"];
   if (ifNoneMatch === etag) {
