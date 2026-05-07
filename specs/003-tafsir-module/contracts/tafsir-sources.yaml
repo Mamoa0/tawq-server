@@ -1,0 +1,83 @@
+openapi: 3.0.0
+info:
+  title: Tafsir Sources Contract
+  version: 1.0.0
+paths:
+  /api/v1/tafsir/sources:
+    get:
+      summary: List Tafsir Sources
+      description: |
+        Returns every registered tafsir source with the metadata clients need to
+        render selection UI and decide whether their renderer must handle HTML.
+        Serves from the local registry only — never calls tafsir.app.
+      tags: [Tafsir]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: language
+          required: false
+          schema:
+            type: string
+            example: ar
+          description: Optional BCP-47 short tag filter (e.g. `ar`, `en`). Omit to return all languages.
+      responses:
+        "200":
+          description: Source registry, possibly filtered by language.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TafsirSourceListItem"
+        "401":
+          description: Missing, invalid, revoked, expired, empty, or malformed API key.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InvalidApiKey"
+components:
+  schemas:
+    TafsirSourceListItem:
+      type: object
+      required: [slug, name, author, language, direction, format, grouping]
+      properties:
+        slug:
+          type: string
+          example: muyassar
+        name:
+          type: object
+          properties:
+            ar: { type: string, example: "التفسير الميسر" }
+            en: { type: string, example: "Al-Muyassar" }
+        author:
+          type: string
+          example: "نخبة من العلماء"
+        language:
+          type: string
+          example: ar
+        direction:
+          type: string
+          enum: [rtl, ltr]
+        format:
+          type: string
+          enum: [text, html]
+        grouping:
+          type: string
+          enum: [ayah, range]
+    InvalidApiKey:
+      type: object
+      required: [error, message, requestId]
+      properties:
+        error: { type: string, example: InvalidApiKey }
+        message: { type: string }
+        requestId: { type: string }
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key

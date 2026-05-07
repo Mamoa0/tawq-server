@@ -1,0 +1,122 @@
+openapi: 3.0.0
+info:
+  title: Tafsir Fetch Contract
+  version: 1.0.0
+paths:
+  /api/v1/tafsir/{surah}/{ayah}:
+    get:
+      summary: Get Tafsir for an Ayah
+      description: |
+        Bundled fetch. Resolves every requested source (or every registered source
+        if `sources` is omitted) and returns one block per source that had data for
+        the ayah, plus a `missing` array naming every requested-but-unresolved
+        source. A slow or failing source is reported in `missing` once it exceeds
+        the per-source budget — the bundle never blocks on a single source.
+
+        For range-shaped sources, the returned block exposes the actual covering
+        `ayahStart`..`ayahEnd`, so two requests for two different ayahs inside the
+        same range receive byte-identical blocks (clients can de-duplicate).
+
+        Honors `If-None-Match` for client revalidation.
+      tags: [Tafsir]
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: surah
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 114 }
+        - in: path
+          name: ayah
+          required: true
+          schema: { type: integer, minimum: 1, maximum: 286 }
+        - in: query
+          name: sources
+          required: false
+          schema:
+            type: string
+            example: muyassar,mukhtasar,tadabbur-wa-amal
+          description: |
+            Comma-separated source slugs. Omit (or pass empty) to default to every
+            currently registered source. Unknown slugs are reported in `missing`,
+            not rejected as a validation error.
+        - in: header
+          name: If-None-Match
+          required: false
+          schema: { type: string }
+      responses:
+        "200":
+          description: |
+            Bundled tafsir result. Always 200 when the surah/ayah reference is
+            valid, even if every requested source ends up in `missing`.
+          headers:
+            ETag:
+              schema: { type: string }
+              description: Weak validator over `max(ingestedAt)` of responding sources plus the requested slug list.
+            Cache-Control:
+              schema: { type: string }
+              example: public, max-age=3600, stale-while-revalidate=86400
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TafsirFetchResponse"
+        "304":
+          description: Client cache validator matched current ETag. Empty body.
+        "400":
+          description: |
+            Invalid surah/ayah reference. Returned when `surah` is outside [1,114],
+            when `ayah` is outside [1, ayahCount(surah)] for the given surah (per-surah
+            validation, not just the OpenAPI ≤286 envelope), or when the path params
+            cannot be coerced to integers.
+        "401":
+          description: Missing, invalid, revoked, expired, empty, or malformed API key.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InvalidApiKey" }
+components:
+  schemas:
+    TafsirFetchResponse:
+      type: object
+      required: [surah, ayah, results, missing]
+      properties:
+        surah: { type: integer }
+        ayah:  { type: integer }
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/TafsirBlock" }
+        missing:
+          type: array
+          items: { type: string }
+          description: Source slugs that were requested but did not resolve (no entry, unknown slug, or exceeded budget).
+    TafsirBlock:
+      type: object
+      required: [source, ayahStart, ayahEnd, text]
+      properties:
+        source:
+          type: object
+          required: [slug, name, language, direction, format]
+          properties:
+            slug: { type: string }
+            name:
+              type: object
+              properties:
+                ar: { type: string }
+                en: { type: string }
+            language: { type: string }
+            direction: { type: string, enum: [rtl, ltr] }
+            format: { type: string, enum: [text, html] }
+        ayahStart: { type: integer }
+        ayahEnd:   { type: integer }
+        text:      { type: string }
+    InvalidApiKey:
+      type: object
+      required: [error, message, requestId]
+      properties:
+        error: { type: string, example: InvalidApiKey }
+        message: { type: string }
+        requestId: { type: string }
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key

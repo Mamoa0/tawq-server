@@ -25,8 +25,8 @@ quranic-corpus-morphology-0.4.txt
 .DS_Store
 Thumbs.db
 
-.claude/*
+# .claude/*
 
-specs/*
-.opencode/*
-.specify/*
+# specs/*
+# .opencode/*
+# .specify/*

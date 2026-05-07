@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://tawq.local/specs/001-beta-perf-hardening/perf-baseline.schema.json",
+  "title": "PerformanceBaseline",
+  "description": "One recorded measurement snapshot for a single hot-path endpoint. One file per endpoint at tests/perf/baselines/<endpointId>.json. Updating a baseline is a deliberate, reviewable commit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "endpointId",
+    "measuredAt",
+    "datasetSnapshotId",
+    "measurement",
+    "node",
+    "mongo",
+    "autocannonConfig"
+  ],
+  "properties": {
+    "endpointId": {
+      "type": "string",
+      "pattern": "^[a-z]+\\.[a-z]+(\\.[a-zA-Z]+)*$",
+      "description": "Stable slug matching HotPathEndpoint.id."
+    },
+    "measuredAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "datasetSnapshotId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Opaque tag for the data corpus used, e.g., full-2026-04-24."
+    },
+    "node": { "type": "string", "minLength": 1 },
+    "mongo": { "type": "string", "minLength": 1 },
+    "autocannonConfig": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["connections", "durationSec"],
+      "properties": {
+        "connections": { "type": "integer", "minimum": 1 },
+        "durationSec": { "type": "integer", "minimum": 1 },
+        "rps": { "type": "integer", "minimum": 1 },
+        "pipelining": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["latencyMs", "rps", "errorRate", "dbRoundTripsMean"],
+      "properties": {
+        "latencyMs": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["p50", "p95", "p99", "mean", "stddev"],
+          "properties": {
+            "p50": { "type": "number", "minimum": 0 },
+            "p95": { "type": "number", "minimum": 0 },
+            "p99": { "type": "number", "minimum": 0 },
+            "mean": { "type": "number", "minimum": 0 },
+            "stddev": { "type": "number", "minimum": 0 }
+          }
+        },
+        "rps": { "type": "number", "minimum": 0 },
+        "errorRate": { "type": "number", "minimum": 0, "maximum": 1 },
+        "dbRoundTripsMean": { "type": "number", "minimum": 0 }
+      }
+    },
+    "notes": { "type": "string" }
+  }
+}
