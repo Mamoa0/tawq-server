@@ -16,7 +16,9 @@
       "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
       "Bash(openssl rand *)",
       "Bash(npm test *)",
-      "Bash(powershell.exe *)"
+      "Bash(powershell.exe *)",
+      "Bash(find specs/003* -type f)",
+      "mcp__ide__getDiagnostics"
     ]
   }
 }
