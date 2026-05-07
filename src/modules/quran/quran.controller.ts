@@ -32,6 +32,25 @@ import {
   getSajdaVerses,
 } from "./quran.service.js";
 import { formatZodError } from "../../utils/validation.js";
+import {
+  getCoverageMap,
+  getTafsirSourcesForAyah,
+} from "../tafsir/tafsir.service.js";
+
+export interface VerseLike {
+  surah: number;
+  ayah: number;
+  [key: string]: unknown;
+}
+
+function annotateTafsirMarker<T extends VerseLike>(item: T, coverageMap: Map<number, Map<number, Set<string>>>): T & { tafsir: { sources: string[] } } {
+  const sources = getTafsirSourcesForAyah(coverageMap, item.surah, item.ayah);
+  return { ...item, tafsir: { sources } };
+}
+
+function annotateVersesTafsir<T extends VerseLike>(items: T[], coverageMap: Map<number, Map<number, Set<string>>>): (T & { tafsir: { sources: string[] } })[] {
+  return items.map((item) => annotateTafsirMarker(item, coverageMap));
+}
 
 export const getAllSurahsHandler = async (
   request: FastifyRequest,
@@ -84,8 +103,10 @@ export const getVersesByPageHandler = async (
     return;
   }
 
-  const data = await getVersesByPage(parsed.data.number, parsed.data.page);
-  reply.send({ data });
+  const data = await getVersesByPage(parsed.data.number, parsed.data.page) as VerseLike[];
+  const coverageMap = await getCoverageMap();
+  const annotated = annotateVersesTafsir(data, coverageMap);
+  reply.send({ data: annotated });
 };
 
 export const getAyahWithWordsHandler = async (
@@ -110,7 +131,9 @@ export const getAyahWithWordsHandler = async (
     return;
   }
 
-  reply.send({ data });
+  const coverageMap = await getCoverageMap();
+  const annotatedVerse = annotateTafsirMarker(data.verse as VerseLike, coverageMap);
+  reply.send({ data: { ...data, verse: annotatedVerse } });
 };
 
 export const getWordDetailsHandler = async (
@@ -156,8 +179,9 @@ export const getVersesByJuzHandler = async (
     return;
   }
 
-  const data = await getVersesByJuz(juz);
-  reply.send({ data });
+  const data = await getVersesByJuz(juz) as VerseLike[];
+  const coverageMap = await getCoverageMap();
+  reply.send({ data: annotateVersesTafsir(data, coverageMap) });
 };
 
 export const getVersesByHizbHandler = async (
@@ -174,8 +198,9 @@ export const getVersesByHizbHandler = async (
     return;
   }
 
-  const data = await getVersesByHizb(hizb);
-  reply.send({ data });
+  const data = await getVersesByHizb(hizb) as VerseLike[];
+  const coverageMap = await getCoverageMap();
+  reply.send({ data: annotateVersesTafsir(data, coverageMap) });
 };
 
 export const getVersesBatchHandler = async (
@@ -228,8 +253,9 @@ export const getVersesBatchHandler = async (
     return;
   }
 
-  const data = await getVersesBatch(parsed);
-  reply.send({ data });
+  const data = await getVersesBatch(parsed) as VerseLike[];
+  const coverageMap = await getCoverageMap();
+  reply.send({ data: annotateVersesTafsir(data, coverageMap) });
 };
 
 export const getVersesByPageOnlyHandler = async (
@@ -246,8 +272,9 @@ export const getVersesByPageOnlyHandler = async (
     return;
   }
 
-  const data = await getVersesByPageOnly(page);
-  reply.send({ data });
+  const data = await getVersesByPageOnly(page) as VerseLike[];
+  const coverageMap = await getCoverageMap();
+  reply.send({ data: annotateVersesTafsir(data, coverageMap) });
 };
 
 export const getAyahWithNavigationHandler = async (
@@ -272,7 +299,9 @@ export const getAyahWithNavigationHandler = async (
     return;
   }
 
-  reply.send({ data });
+  const coverageMap = await getCoverageMap();
+  const annotatedVerse = annotateTafsirMarker(data.verse as VerseLike, coverageMap);
+  reply.send({ data: { ...data, verse: annotatedVerse } });
 };
 
 export const getSurahThemesHandler = async (
@@ -312,15 +341,17 @@ export const getRandomVerseHandler = async (
     return;
   }
 
-  reply.send({ data });
+  const coverageMap = await getCoverageMap();
+  reply.send({ data: annotateTafsirMarker(data as VerseLike, coverageMap) });
 };
 
 export const getVersesOfTheDayHandler = async (
   request: FastifyRequest,
   reply: FastifyReply,
 ): Promise<void> => {
-  const data = await getVersesOfTheDay();
-  reply.send({ data });
+  const data = await getVersesOfTheDay() as VerseLike[];
+  const coverageMap = await getCoverageMap();
+  reply.send({ data: annotateVersesTafsir(data, coverageMap) });
 };
 
 export const getRevelationOrderHandler = async (

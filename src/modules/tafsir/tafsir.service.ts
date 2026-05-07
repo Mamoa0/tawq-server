@@ -61,6 +61,10 @@ const CACHE_MAX_ENTRIES = 50_000;
 const tafsirCache = new Map<string, CachedEntry>();
 let cacheOrder: string[] = [];
 
+let sourceCache: Array<{ slug: string; generation: number }> | null = null;
+let sourceCacheTs = 0;
+const SOURCE_CACHE_TTL_MS = 60_000;
+
 function getCacheKey(slug: string, surah: number, ayah: number): string {
   return `${slug}|${surah}|${ayah}`;
 }
@@ -163,7 +167,7 @@ export async function fetchBundle(
           });
 
         if (entry) {
-          const tafsirEntry = entry as { ayahStart: number; ayahEnd: number; text: string };
+          const tafsirEntry = entry as unknown as { ayahStart: number; ayahEnd: number; text: string };
           const result: TafsirResult = {
             source: {
               slug: sourceDoc.slug,
@@ -198,11 +202,48 @@ export async function fetchBundle(
   return { results, missing, respondingSlugs };
 }
 
-export async function getCoverageMapForSurahs(surahs: number[]): Promise<Map<number, Map<number, Set<string>>>> {
+async function getSources(): Promise<Array<{ slug: string; generation: number }>> {
+  const now = Date.now();
+  if (sourceCache && now - sourceCacheTs < SOURCE_CACHE_TTL_MS) {
+    return sourceCache;
+  }
+  const sources = await TafsirSource.find().select("slug generation").lean();
+  sourceCache = sources.map((s) => ({ slug: s.slug, generation: s.generation }));
+  sourceCacheTs = now;
+  return sourceCache;
+}
+
+// Global coverage map — built once on first request, invalidated when any source's generation changes.
+// Bounded by total corpus: 114 surahs x ~6236 ayahs x N sources (~18k Set entries, ~1–2 MB at 3 sources).
+let coverageMap: Map<number, Map<number, Set<string>>> | null = null;
+let coverageMapGeneration = -1;
+let coverageBuildPromise: Promise<Map<number, Map<number, Set<string>>>> | null = null;
+
+export async function getCoverageMap(): Promise<Map<number, Map<number, Set<string>>>> {
+  const sources = await getSources();
+  const maxGeneration = sources.reduce((max, s) => Math.max(max, s.generation), 0);
+
+  if (coverageMap !== null && coverageMapGeneration === maxGeneration) {
+    return coverageMap;
+  }
+
+  if (coverageBuildPromise) {
+    return coverageBuildPromise;
+  }
+
+  coverageBuildPromise = buildCoverageMap(sources, maxGeneration).finally(() => {
+    coverageBuildPromise = null;
+  });
+
+  return coverageBuildPromise;
+}
+
+async function buildCoverageMap(sources: Array<{ slug: string; generation: number }>, maxGeneration: number): Promise<Map<number, Map<number, Set<string>>>> {
   const coverage = new Map<number, Map<number, Set<string>>>();
 
+  const ALL_SURAHS = Array.from({ length: 114 }, (_, i) => i + 1);
   const entries = await Tafsir.find({
-    surah: { $in: surahs },
+    surah: { $in: ALL_SURAHS },
   })
     .select("sourceSlug surah ayahStart ayahEnd")
     .lean();
@@ -220,6 +261,8 @@ export async function getCoverageMapForSurahs(surahs: number[]): Promise<Map<num
     }
   }
 
+  coverageMap = coverage;
+  coverageMapGeneration = maxGeneration;
   return coverage;
 }
 
@@ -232,7 +275,7 @@ export function getTafsirSourcesForAyah(
   if (!surahMap) return [];
   const sources = surahMap.get(ayah);
   if (!sources) return [];
-  return Array.from(sources).sort();
+  return Array.from(sources).sort((a, b) => a.localeCompare(b));
 }
 
 const AYAH_COUNTS: Record<number, number> = {
@@ -253,6 +296,10 @@ const AYAH_COUNTS: Record<number, number> = {
 export function clearTafsirCache(): void {
   tafsirCache.clear();
   cacheOrder = [];
+  coverageMap = null;
+  coverageMapGeneration = -1;
+  sourceCache = null;
+  sourceCacheTs = 0;
 }
 
 export function validateSurahAyah(surah: number, ayah: number): string | null {
